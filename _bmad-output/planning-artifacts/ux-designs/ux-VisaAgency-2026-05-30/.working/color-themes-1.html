@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>David Agency — Navy Color Theme Variations</title>
+  <style>
+    /* ============================================================
+       BASE RESET & PAGE LAYOUT
+       ============================================================ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                   "Helvetica Neue", Arial, sans-serif;
+      background: #f0f2f5;
+      padding: 40px 24px;
+      min-width: 900px;
+    }
+
+    h1.page-title {
+      text-align: center;
+      font-size: 22px;
+      font-weight: 700;
+      color: #111;
+      letter-spacing: -0.3px;
+      margin-bottom: 8px;
+    }
+    p.page-sub {
+      text-align: center;
+      font-size: 13px;
+      color: #666;
+      margin-bottom: 40px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+
+    /* ============================================================
+       SHARED CARD CHROME (variation-agnostic)
+       ============================================================ */
+    .card {
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0,0,0,.12);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ---- variation header ---- */
+    .var-header {
+      padding: 16px 18px 14px;
+      border-bottom-width: 1px;
+      border-bottom-style: solid;
+    }
+    .var-name {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: -.2px;
+    }
+    .var-register {
+      font-size: 11.5px;
+      margin-top: 4px;
+      opacity: .75;
+      line-height: 1.4;
+    }
+
+    /* ---- token chips ---- */
+    .token-section {
+      padding: 14px 18px 16px;
+      border-bottom-width: 1px;
+      border-bottom-style: solid;
+    }
+    .token-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      opacity: .55;
+    }
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .chip {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 6px;
+      padding: 4px 8px 4px 4px;
+      font-size: 11px;
+      font-weight: 500;
+      border-width: 1px;
+      border-style: solid;
+    }
+    .chip-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      border-width: 1px;
+      border-style: solid;
+      border-color: rgba(0,0,0,.12);
+      flex-shrink: 0;
+    }
+
+    /* ---- UI snippet ---- */
+    .snippet {
+      padding: 16px 18px 20px;
+      flex: 1;
+    }
+    .snippet-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      opacity: .45;
+    }
+
+    /* mini table */
+    .mini-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .mini-table thead th {
+      text-align: left;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      padding: 0 8px 8px;
+      border-bottom-width: 1px;
+      border-bottom-style: solid;
+    }
+    .mini-table tbody td {
+      padding: 10px 8px;
+      border-bottom-width: 1px;
+      border-bottom-style: solid;
+    }
+    .mini-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* status badge */
+    .badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 999px;
+      letter-spacing: .02em;
+    }
+
+    /* action button */
+    .btn {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 5px 11px;
+      border-radius: 6px;
+      cursor: pointer;
+      letter-spacing: .01em;
+      border: none;
+      white-space: nowrap;
+    }
+
+    /* app-id mono */
+    .app-id {
+      font-family: "SFMono-Regular", "Consolas", "Liberation Mono", monospace;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    /* ============================================================
+       VARIATION 1 — AUTHORITY
+       Palette:
+         --primary:            #0A2342   (deep government navy)
+         --primary-foreground: #FFFFFF
+         --background:         #FFFFFF
+         --foreground:         #0D1117
+         --muted:              #EEF1F5
+         --border:             #C5CDD8
+         --accent:             #1B4F8A   (mid-tone authority blue)
+         --badge-raw-bg:       #FEF3C7
+         --badge-raw-text:     #92400E
+       ============================================================ */
+    .v1 .var-header {
+      background: #0A2342;
+      border-bottom-color: #0D2B52;
+    }
+    .v1 .var-name    { color: #FFFFFF; }
+    .v1 .var-register { color: #CBD5E1; }
+
+    .v1 .token-section {
+      background: #FFFFFF;
+      border-bottom-color: #C5CDD8;
+    }
+    .v1 .token-label { color: #0D1117; }
+    .v1 .chip {
+      background: #EEF1F5;
+      border-color: #C5CDD8;
+      color: #0D1117;
+    }
+
+    .v1 .snippet { background: #FFFFFF; }
+    .v1 .snippet-label { color: #0D1117; }
+
+    .v1 .mini-table thead th {
+      color: #4B5563;
+      border-bottom-color: #C5CDD8;
+    }
+    .v1 .mini-table tbody td {
+      color: #0D1117;
+      border-bottom-color: #EEF1F5;
+    }
+    .v1 .mini-table tbody tr:hover td {
+      background: #EEF1F5;
+    }
+    .v1 .app-id { color: #0A2342; }
+
+    .v1 .badge {
+      background: #FEF3C7;
+      color: #92400E;
+    }
+    .v1 .btn {
+      background: #0A2342;
+      color: #FFFFFF;
+    }
+
+    /* ============================================================
+       VARIATION 2 — CLARITY
+       Palette:
+         --primary:            #2563A8   (softer, open blue)
+         --primary-foreground: #FFFFFF
+         --background:         #FFFFFF
+         --foreground:         #1E2937
+         --muted:              #F5F8FC
+         --border:             #DBEAFE
+         --accent:             #EFF6FF   (very pale blue wash)
+         --badge-raw-bg:       #FFF7ED
+         --badge-raw-text:     #9A3412
+       ============================================================ */
+    .v2 .var-header {
+      background: #2563A8;
+      border-bottom-color: #1D56999;
+    }
+    .v2 .var-name    { color: #FFFFFF; }
+    .v2 .var-register { color: #BFDBFE; }
+
+    .v2 .token-section {
+      background: #F5F8FC;
+      border-bottom-color: #DBEAFE;
+    }
+    .v2 .token-label { color: #1E2937; }
+    .v2 .chip {
+      background: #FFFFFF;
+      border-color: #DBEAFE;
+      color: #1E2937;
+    }
+
+    .v2 .snippet { background: #FFFFFF; }
+    .v2 .snippet-label { color: #1E2937; }
+
+    .v2 .mini-table thead th {
+      color: #6B7280;
+      border-bottom-color: #DBEAFE;
+    }
+    .v2 .mini-table tbody td {
+      color: #1E2937;
+      border-bottom-color: #EFF6FF;
+    }
+    .v2 .mini-table tbody tr:hover td {
+      background: #F5F8FC;
+    }
+    .v2 .app-id { color: #2563A8; }
+
+    .v2 .badge {
+      background: #FFF7ED;
+      color: #9A3412;
+    }
+    .v2 .btn {
+      background: #2563A8;
+      color: #FFFFFF;
+    }
+
+    /* ============================================================
+       VARIATION 3 — SLATE & NAVY
+       Palette:
+         --primary:            #1C3F6E   (navy as accent/action only)
+         --primary-foreground: #FFFFFF
+         --background:         #FAFAFA
+         --foreground:         #0F172A
+         --muted:              #F1F5F9
+         --border:             #E2E8F0
+         --accent:             #F8FAFC
+         --badge-raw-bg:       #FEF9C3
+         --badge-raw-text:     #713F12
+       ============================================================ */
+    .v3 .var-header {
+      background: #F8FAFC;
+      border-bottom-color: #E2E8F0;
+    }
+    .v3 .var-name    { color: #0F172A; }
+    .v3 .var-register { color: #64748B; }
+
+    .v3 .token-section {
+      background: #FAFAFA;
+      border-bottom-color: #E2E8F0;
+    }
+    .v3 .token-label { color: #0F172A; }
+    .v3 .chip {
+      background: #FFFFFF;
+      border-color: #E2E8F0;
+      color: #0F172A;
+    }
+
+    .v3 .snippet { background: #FAFAFA; }
+    .v3 .snippet-label { color: #0F172A; }
+
+    .v3 .mini-table thead th {
+      color: #64748B;
+      border-bottom-color: #E2E8F0;
+    }
+    .v3 .mini-table tbody td {
+      color: #0F172A;
+      border-bottom-color: #F1F5F9;
+    }
+    .v3 .mini-table tbody tr:hover td {
+      background: #F1F5F9;
+    }
+    .v3 .app-id { color: #1C3F6E; }
+
+    .v3 .badge {
+      background: #FEF9C3;
+      color: #713F12;
+    }
+    .v3 .btn {
+      background: #1C3F6E;
+      color: #FFFFFF;
+    }
+
+    /* ============================================================
+       VARIATION 4 — MIDNIGHT
+       Palette:
+         --primary:            #0D1B2A   (near-charcoal dark navy)
+         --primary-foreground: #E2E8F0
+         --background:         #FFFFFF
+         --foreground:         #0D1B2A
+         --muted:              #F1F3F6
+         --border:             #D1D9E4
+         --accent:             #1E3A5F   (cool midnight blue highlight)
+         --badge-raw-bg:       #FEF2F2
+         --badge-raw-text:     #991B1B
+       ============================================================ */
+    .v4 .var-header {
+      background: #0D1B2A;
+      border-bottom-color: #162336;
+    }
+    .v4 .var-name    { color: #E2E8F0; }
+    .v4 .var-register { color: #94A3B8; }
+
+    .v4 .token-section {
+      background: #FFFFFF;
+      border-bottom-color: #D1D9E4;
+    }
+    .v4 .token-label { color: #0D1B2A; }
+    .v4 .chip {
+      background: #F1F3F6;
+      border-color: #D1D9E4;
+      color: #0D1B2A;
+    }
+
+    .v4 .snippet { background: #FFFFFF; }
+    .v4 .snippet-label { color: #0D1B2A; }
+
+    .v4 .mini-table thead th {
+      color: #4B5563;
+      border-bottom-color: #D1D9E4;
+    }
+    .v4 .mini-table tbody td {
+      color: #0D1B2A;
+      border-bottom-color: #F1F3F6;
+    }
+    .v4 .mini-table tbody tr:hover td {
+      background: #F1F3F6;
+    }
+    .v4 .app-id { color: #1E3A5F; }
+
+    .v4 .badge {
+      background: #FEF2F2;
+      color: #991B1B;
+    }
+    .v4 .btn {
+      background: #0D1B2A;
+      color: #E2E8F0;
+    }
+  </style>
+</head>
+<body>
+
+  <h1 class="page-title">David Agency — Navy Color Theme Explorations</h1>
+  <p class="page-sub">4 variations · Light mode only · shadcn/ui token mapping · Dashboard snippet: Application DA-2026-0042</p>
+
+  <div class="grid">
+
+    <!-- ==================== VARIATION 1: AUTHORITY ==================== -->
+    <div class="card v1">
+      <div class="var-header">
+        <div class="var-name">1 — Authority</div>
+        <div class="var-register">Deep government navy, high contrast, formal gravitas</div>
+      </div>
+
+      <div class="token-section">
+        <div class="token-label">Design Tokens</div>
+        <div class="chips">
+          <div class="chip">
+            <div class="chip-swatch" style="background:#0A2342;"></div>
+            <span>primary #0A2342</span>
+          </div>
+          <div class="chip">
+            <div class="chip-swatch" style="background:#FFFFFF; border-color:#C5CDD8;"></div>
+            <span>primary-fg #FFFFFF</span>
+          </div>
+          <div class="chip">
+            <div class="chip-swatch" style="background:#FFFFFF; border-color:#C5CDD8;"></div>
+            <span>background #FFFFFF</span>
+          </div>
+          <div class="chip">
+            <div class="chip-swatch" style="background:#0D1117;"></div>
+            <span>foreground #0D1117</span>
+          </div>
+          <div class="chip">
+            <div class="chip-swatch" style="background:#EEF1F5; border-color:#C5CDD8;"></div>
+            <span>muted #EEF1F5</span>
+          </div>
+          <div class="chip">
+            <div class="chip-swatch" style="background:#C5CDD8;"></div>
+            <span>border #C5CDD8</span>
+          </div>
+          <div class="chip">
+            <div class="chip-swatch" style="background:#1B4F8A;"></div>
+            <span>accent #1B4F8A</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="snippet">
+        <div class="snippet-label">Dashboard · Applications table</div>
+        <table class="mini-table">
+          <thead>
+            <tr>
+              <th>App ID</th>
+              <th>Applicant</th>
+              <th>Status</th>
+              <th>Arrival</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="app-id">DA-2026-0042</span></td>
+              <td style="font-weight:500;">Carlos Rodriguez</td>
+              <td><span class="badge">Raw</span></td>
+              <td style="color:#4B5563;">Jul 6 2026</td>
+              <td><button class="btn">Push to eVisa</button></td>
+            </tr>
+            <tr>
+              <td><span class="app-id" style="opacity:.4;">DA-2026-0041</span></td>
+              <td style="opacity:.4;">—</td>
+              <td><span class="badge" style="background:#DCFCE7; color:#166534;">Approved</span></td>
+              <td style="color:#4B5563; opacity:.4;">Jun 30 2026</td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ==================== VARIATION 2: CLARITY ==================== -->
+    <div class="card v2">
+      <div class="var-header">
+        <div class="var-name">2 — Clarity</div>
+        <div class="var-register">Softer navy, more white space, approachable and open</div>
+      </div>
+
+      <div class="token-section">
+        <div class="token-label">Design Tokens</div>
+        <div class="chips">
+          <div class="chip">
+            <div class="chip-swatch" style="background:#2563A8;"></div>
+            <span>primary #2563A8</span>
+          </div>
+          <div class="chip">
+            <div class="chip-swatch" style="background:#FFFFFF; border-color:#DBEAFE;"></div>
+            <span>primary-fg #FFFFFF</span>
+          </div>
+          <div class="chip">
+            <div class="chip-swatch" style="background:#FFFFFF; border-color:#DBEAFE;"></div>
+            <span>background #FFFFFF</span>
+          </div>
+          <div class="chip">
+            <div class="chip-swatch" style="background:#1E2937;"></div>
+            <span>foreground #1E2937</span>
+          </div>
+          <div class="chip">
+            <div class="chip-swatch" style="background:#F5F8FC; border-color:#DBEAFE;"></div>
+            <span>muted #F5F8FC</span>
+          </div>
+          <div class="chip">
+            <div class="chip-swatch" style="background:#DBEAFE;"></div>
+            <span>border #DBEAFE</span>
+          </div>
+          <div class="chip">
+            <div class="chip-swatch" style="background:#EFF6FF; border-color:#DBEAFE;"></div>
+            <span>accent #EFF6FF</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="snippet">
+        <div class="snippet-label">Dashboard · Applications table</div>
+        <table class="mini-table">
+          <thead>
+            <tr>
+              <th>App ID</th>
+              <th>Applicant</th>
+              <th>Status</th>
+              <th>Arrival</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="app-id">DA-2026-0042</span></td>
+              <td style="font-weight:500;">Carlos Rodriguez</td>
+              <td><span class="badge">Raw</span></td>
+              <td style="color:#6B7280;">Jul 6 2026</td>
+              <td><button class="btn">Push to eVisa</button></td>
+            </tr>
+            <tr>
+              <td><span class="app-id" style="opacity:.4;">DA-2026-0041</span></td>
+              <td style="opacity:.4;">—</td>
+              <td><span class="badge" style="background:#DCFCE7; color:#166534;">Approved</span></td>
+              <td style="color:#6B7280; opacity:.4;">Jun 30 2026</td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ==================== VARIATION 3: SLATE & NAVY ==================== -->
+    <div class="card v3">
+      <div class="var-header">
+        <div class="var-name">3 — Slate &amp; Navy</div>
+        <div class="var-register">Vercel-like neutral slate, navy as purposeful accent only</div>
+      </div>
+
+      <div class="token-section">
+        <div class="token-label">Design Tokens</div>
+        <div class="chips">
+          <div class="chip">
+            <div class="chip-swatch" style="background:#1C3F6E;"></div>
+            <span>primary #1C3F6E</span>
+          </div>
+          <div class="chip">
+            <div class="chip-swatch" style="background:#FFFFFF; border-color:#E2E8F0;"></div>
+            <span>primary-fg #FFFFFF</span>
+          </div>
+          <div class="chip">
+            <div class="chip-swatch" style="background:#FAFAFA; border-color:#E2E8F0;"></div>
+            <span>background #FAFAFA</span>
+          </div>
+          <div class="chip">
+            <div class="chip-swatch" style="background:#0F172A;"></div>
+            <span>foreground #0F172A</span>
+          </div>
+          <div class="chip">
+            <div class="chip-swatch" style="background:#F1F5F9; border-color:#E2E8F0;"></div>
+            <span>muted #F1F5F9</span>
+          </div>
+          <div class="chip">
+            <div class="chip-swatch" style="background:#E2E8F0;"></div>
+            <span>border #E2E8F0</span>
+          </div>
+          <div class="chip">
+            <div class="chip-swatch" style="background:#F8FAFC; border-color:#E2E8F0;"></div>
+            <span>accent #F8FAFC</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="snippet">
+        <div class="snippet-label">Dashboard · Applications table</div>
+        <table class="mini-table">
+          <thead>
+            <tr>
+              <th>App ID</th>
+              <th>Applicant</th>
+              <th>Status</th>
+              <th>Arrival</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="app-id">DA-2026-0042</span></td>
+              <td style="font-weight:500;">Carlos Rodriguez</td>
+              <td><span class="badge">Raw</span></td>
+              <td style="color:#64748B;">Jul 6 2026</td>
+              <td><button class="btn">Push to eVisa</button></td>
+            </tr>
+            <tr>
+              <td><span class="app-id" style="opacity:.4;">DA-2026-0041</span></td>
+              <td style="opacity:.4;">—</td>
+              <td><span class="badge" style="background:#DCFCE7; color:#166534;">Approved</span></td>
+              <td style="color:#64748B; opacity:.4;">Jun 30 2026</td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ==================== VARIATION 4: MIDNIGHT ==================== -->
+    <div class="card v4">
+      <div class="var-header">
+        <div class="var-name">4 — Midnight</div>
+        <div class="var-register">Near-charcoal dark navy, sleek and quietly powerful</div>
+      </div>
+
+      <div class="token-section">
+        <div class="token-label">Design Tokens</div>
+        <div class="chips">
+          <div class="chip">
+            <div class="chip-swatch" style="background:#0D1B2A;"></div>
+            <span>primary #0D1B2A</span>
+          </div>
+          <div class="chip">
+            <div class="chip-swatch" style="background:#E2E8F0; border-color:#D1D9E4;"></div>
+            <span>primary-fg #E2E8F0</span>
+          </div>
+          <div class="chip">
+            <div class="chip-swatch" style="background:#FFFFFF; border-color:#D1D9E4;"></div>
+            <span>background #FFFFFF</span>
+          </div>
+          <div class="chip">
+            <div class="chip-swatch" style="background:#0D1B2A;"></div>
+            <span>foreground #0D1B2A</span>
+          </div>
+          <div class="chip">
+            <div class="chip-swatch" style="background:#F1F3F6; border-color:#D1D9E4;"></div>
+            <span>muted #F1F3F6</span>
+          </div>
+          <div class="chip">
+            <div class="chip-swatch" style="background:#D1D9E4;"></div>
+            <span>border #D1D9E4</span>
+          </div>
+          <div class="chip">
+            <div class="chip-swatch" style="background:#1E3A5F;"></div>
+            <span>accent #1E3A5F</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="snippet">
+        <div class="snippet-label">Dashboard · Applications table</div>
+        <table class="mini-table">
+          <thead>
+            <tr>
+              <th>App ID</th>
+              <th>Applicant</th>
+              <th>Status</th>
+              <th>Arrival</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="app-id">DA-2026-0042</span></td>
+              <td style="font-weight:500;">Carlos Rodriguez</td>
+              <td><span class="badge">Raw</span></td>
+              <td style="color:#4B5563;">Jul 6 2026</td>
+              <td><button class="btn">Push to eVisa</button></td>
+            </tr>
+            <tr>
+              <td><span class="app-id" style="opacity:.4;">DA-2026-0041</span></td>
+              <td style="opacity:.4;">—</td>
+              <td><span class="badge" style="background:#DCFCE7; color:#166534;">Approved</span></td>
+              <td style="color:#4B5563; opacity:.4;">Jun 30 2026</td>
+              <td></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- /.grid -->
+
+</body>
+</html>

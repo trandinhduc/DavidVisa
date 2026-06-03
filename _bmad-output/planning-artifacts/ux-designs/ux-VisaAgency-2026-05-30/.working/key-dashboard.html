@@ -1,0 +1,1146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>David Agency — Applications Dashboard</title>
+<style>
+  /*
+   * ============================================================
+   * David Agency — Applications Dashboard Mockup
+   * Surface: /dashboard (Applications List + Detail Panel)
+   * Theme: Authority
+   * Design tokens:
+   *   --primary:            #0A2342
+   *   --primary-foreground: #FFFFFF
+   *   --background:         #FFFFFF
+   *   --foreground:         #0F172A
+   *   --muted:              #F1F5F9
+   *   --muted-foreground:   #64748B
+   *   --border:             #E2E8F0
+   *   --accent:             #1D4ED8
+   *   --destructive:        #DC2626
+   *   --success:            #16A34A
+   *   --warning:            #D97706
+   *   font: Geist Sans, system-ui, -apple-system, sans-serif
+   * Viewport: 1280×900 full browser frame
+   * ============================================================
+   */
+
+  *, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+
+  body {
+    font-family: 'Geist Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    background: #FFFFFF;
+    color: #0F172A;
+    width: 1280px;
+    min-height: 900px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── Browser chrome simulation ─────────────────────────────── */
+  .browser-chrome {
+    background: #E5E7EB;
+    border-bottom: 1px solid #D1D5DB;
+    padding: 10px 16px 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .chrome-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .chrome-dots {
+    display: flex;
+    gap: 6px;
+  }
+  .chrome-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+  .chrome-dot.red    { background: #EF4444; }
+  .chrome-dot.yellow { background: #F59E0B; }
+  .chrome-dot.green  { background: #22C55E; }
+  .chrome-nav {
+    display: flex;
+    gap: 4px;
+  }
+  .chrome-nav button {
+    background: none;
+    border: none;
+    color: #6B7280;
+    font-size: 16px;
+    cursor: default;
+    padding: 0 4px;
+    line-height: 1;
+  }
+  .chrome-address {
+    flex: 1;
+    background: #FFFFFF;
+    border: 1px solid #D1D5DB;
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 13px;
+    color: #374151;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .chrome-address .lock {
+    color: #16A34A;
+    font-size: 12px;
+  }
+  .chrome-tabs {
+    display: flex;
+    gap: 2px;
+    align-items: flex-end;
+  }
+  .chrome-tab {
+    background: #FFFFFF;
+    border: 1px solid #D1D5DB;
+    border-bottom: none;
+    border-radius: 6px 6px 0 0;
+    padding: 6px 16px;
+    font-size: 12px;
+    color: #374151;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    min-width: 180px;
+  }
+  .chrome-tab .favicon {
+    width: 14px;
+    height: 14px;
+    background: #0A2342;
+    border-radius: 2px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 8px;
+    font-weight: 700;
+  }
+
+  /* ── App shell ──────────────────────────────────────────────── */
+  .app-shell {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+    height: 840px;
+  }
+
+  /* ── Sidebar ────────────────────────────────────────────────── */
+  .sidebar {
+    width: 240px;
+    background: #0A2342;
+    color: #FFFFFF;
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    height: 100%;
+  }
+  .sidebar-logo {
+    padding: 20px 24px 16px 24px;
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .sidebar-logo .logo-mark {
+    width: 32px;
+    height: 32px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: -1px;
+  }
+  .sidebar-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.15);
+    margin: 0 16px;
+  }
+  .sidebar-section-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: rgba(255,255,255,0.4);
+    padding: 16px 16px 6px 16px;
+  }
+  .sidebar-nav {
+    padding: 8px 8px;
+    flex: 1;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 12px;
+    height: 40px;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.7);
+    cursor: default;
+    transition: background 0.15s;
+    text-decoration: none;
+  }
+  .nav-item.active {
+    background: rgba(255,255,255,0.15);
+    color: #FFFFFF;
+    font-weight: 600;
+  }
+  .nav-item .nav-icon {
+    width: 18px;
+    height: 18px;
+    opacity: 0.8;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .nav-item.active .nav-icon {
+    opacity: 1;
+  }
+  .nav-badge {
+    margin-left: auto;
+    background: rgba(255,255,255,0.2);
+    color: white;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 7px;
+    border-radius: 10px;
+  }
+  .nav-item.active .nav-badge {
+    background: rgba(255,255,255,0.25);
+  }
+
+  .sidebar-footer {
+    padding: 12px 16px 16px 16px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+  .sidebar-user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .user-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: white;
+    flex-shrink: 0;
+  }
+  .user-info {
+    flex: 1;
+  }
+  .user-name {
+    font-size: 13px;
+    font-weight: 600;
+    color: #FFFFFF;
+  }
+  .user-role {
+    font-size: 11px;
+    color: rgba(255,255,255,0.5);
+  }
+  .sign-out {
+    display: block;
+    font-size: 12px;
+    color: rgba(255,255,255,0.45);
+    text-decoration: none;
+    padding: 4px 0;
+    cursor: default;
+  }
+  .sign-out:hover {
+    color: rgba(255,255,255,0.7);
+  }
+
+  /* ── Main content ───────────────────────────────────────────── */
+  .main-content {
+    flex: 1;
+    background: #F8FAFC;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    height: 100%;
+  }
+
+  /* Top bar */
+  .topbar {
+    background: #FFFFFF;
+    border-bottom: 1px solid #E2E8F0;
+    height: 56px;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .page-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: #0F172A;
+    letter-spacing: -0.3px;
+  }
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .search-input {
+    width: 260px;
+    height: 36px;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    padding: 0 12px 0 36px;
+    font-size: 13px;
+    color: #64748B;
+    background: #FFFFFF;
+    outline: none;
+    position: relative;
+  }
+  .search-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+  }
+  .search-icon {
+    position: absolute;
+    left: 11px;
+    color: #94A3B8;
+    font-size: 14px;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .btn-icon {
+    width: 36px;
+    height: 36px;
+    border: 1px solid #E2E8F0;
+    border-radius: 8px;
+    background: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #64748B;
+    font-size: 16px;
+    cursor: default;
+  }
+
+  /* Filter tabs bar */
+  .filter-bar {
+    background: #FFFFFF;
+    border-bottom: 1px solid #E2E8F0;
+    height: 44px;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    flex-shrink: 0;
+  }
+  .filter-tab {
+    height: 44px;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
+    font-size: 13px;
+    font-weight: 500;
+    color: #64748B;
+    border-bottom: 2px solid transparent;
+    cursor: default;
+    white-space: nowrap;
+    gap: 6px;
+  }
+  .filter-tab.active {
+    color: #0A2342;
+    font-weight: 700;
+    border-bottom: 2px solid #0A2342;
+  }
+  .tab-count {
+    background: #F1F5F9;
+    color: #64748B;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 6px;
+    border-radius: 10px;
+  }
+  .filter-tab.active .tab-count {
+    background: #0A2342;
+    color: #FFFFFF;
+  }
+  .filter-sep {
+    width: 1px;
+    height: 20px;
+    background: #E2E8F0;
+    margin: 0 4px;
+  }
+
+  /* ── Scrollable body area ─────────────────────────────────── */
+  .body-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  /* ── Table section ──────────────────────────────────────────── */
+  .section-card {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .section-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid #E2E8F0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .section-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #0F172A;
+  }
+  .section-meta {
+    font-size: 12px;
+    color: #64748B;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  thead th {
+    background: #F8FAFC;
+    padding: 10px 16px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #64748B;
+    border-bottom: 1px solid #E2E8F0;
+    white-space: nowrap;
+  }
+  tbody tr {
+    border-bottom: 1px solid #F1F5F9;
+  }
+  tbody tr:last-child {
+    border-bottom: none;
+  }
+  tbody tr:hover {
+    background: #F8FAFC;
+  }
+  tbody tr.selected {
+    background: #EFF6FF;
+  }
+  td {
+    padding: 13px 16px;
+    font-size: 13px;
+    color: #0F172A;
+    vertical-align: middle;
+  }
+  .app-id {
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 12px;
+    color: #1D4ED8;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .full-name {
+    font-weight: 500;
+  }
+  .date-cell {
+    color: #374151;
+    white-space: nowrap;
+  }
+  .time-ago {
+    color: #94A3B8;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  /* Status badges */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    border: 1px solid;
+    white-space: nowrap;
+  }
+  .badge::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+  .badge-raw {
+    background: #F1F5F9;
+    color: #64748B;
+    border-color: #E2E8F0;
+  }
+  .badge-raw::before { background: #94A3B8; }
+  .badge-ready {
+    background: #FEF3C7;
+    color: #92400E;
+    border-color: #FDE68A;
+  }
+  .badge-ready::before { background: #D97706; }
+  .badge-submitted {
+    background: #DBEAFE;
+    color: #1E40AF;
+    border-color: #BFDBFE;
+  }
+  .badge-submitted::before { background: #3B82F6; }
+  .badge-done {
+    background: #DCFCE7;
+    color: #166534;
+    border-color: #BBF7D0;
+  }
+  .badge-done::before { background: #16A34A; }
+
+  /* Action buttons */
+  .actions-cell {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: default;
+    white-space: nowrap;
+    text-decoration: none;
+    border: 1px solid transparent;
+    line-height: 1.4;
+  }
+  .btn-outline-primary {
+    border-color: #0A2342;
+    color: #0A2342;
+    background: #FFFFFF;
+  }
+  .btn-primary {
+    background: #0A2342;
+    color: #FFFFFF;
+    border-color: #0A2342;
+  }
+  .btn-ghost {
+    background: transparent;
+    color: #64748B;
+    border-color: #E2E8F0;
+  }
+  .btn-accent {
+    background: #1D4ED8;
+    color: #FFFFFF;
+    border-color: #1D4ED8;
+  }
+
+  /* ── Detail panel ───────────────────────────────────────────── */
+  .detail-panel {
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .detail-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid #E2E8F0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .detail-header-id {
+    font-size: 15px;
+    font-weight: 700;
+    color: #0F172A;
+  }
+  .detail-header-name {
+    font-size: 15px;
+    font-weight: 400;
+    color: #64748B;
+  }
+  .detail-header-actions {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .notification-banner {
+    margin: 16px 20px 0 20px;
+    background: #FFFBEB;
+    border: 1px solid #FDE68A;
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: #92400E;
+  }
+  .notification-banner .notif-icon {
+    font-size: 15px;
+  }
+  .notification-banner strong {
+    font-weight: 600;
+  }
+
+  .detail-body {
+    padding: 20px;
+    display: flex;
+    gap: 32px;
+    flex-wrap: wrap;
+  }
+  .detail-fields {
+    flex: 1;
+    min-width: 260px;
+  }
+  .detail-photos {
+    display: flex;
+    gap: 16px;
+    flex-shrink: 0;
+  }
+  .field-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 14px;
+  }
+  .field-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #94A3B8;
+  }
+  .field-value {
+    font-size: 14px;
+    font-weight: 500;
+    color: #0F172A;
+  }
+  .photo-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .photo-placeholder {
+    width: 120px;
+    height: 120px;
+    background: #F1F5F9;
+    border: 2px dashed #CBD5E1;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 6px;
+    color: #94A3B8;
+  }
+  .photo-placeholder .photo-icon {
+    font-size: 28px;
+    opacity: 0.5;
+  }
+  .photo-placeholder .photo-hint {
+    font-size: 10px;
+    color: #94A3B8;
+  }
+  .photo-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #374151;
+  }
+  .photo-view-link {
+    font-size: 12px;
+    color: #1D4ED8;
+    text-decoration: none;
+    cursor: default;
+  }
+
+  .detail-footer {
+    padding: 0 20px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 340px;
+  }
+  .btn-full {
+    width: 100%;
+    justify-content: center;
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 8px;
+  }
+
+  /* ── Divider line ────────────────────────────────────────────── */
+  .section-label-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 4px;
+  }
+  .section-label-text {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #64748B;
+    white-space: nowrap;
+  }
+  .section-label-line {
+    flex: 1;
+    height: 1px;
+    background: #E2E8F0;
+  }
+
+  /* ── Scrollbar style ─────────────────────────────────────────── */
+  .body-area::-webkit-scrollbar {
+    width: 6px;
+  }
+  .body-area::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .body-area::-webkit-scrollbar-thumb {
+    background: #CBD5E1;
+    border-radius: 3px;
+  }
+
+  /* ── Stats row ───────────────────────────────────────────────── */
+  .stats-row {
+    display: flex;
+    gap: 12px;
+    flex-shrink: 0;
+  }
+  .stat-card {
+    flex: 1;
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .stat-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #64748B;
+  }
+  .stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #0F172A;
+    letter-spacing: -0.5px;
+    line-height: 1.1;
+  }
+  .stat-sub {
+    font-size: 11px;
+    color: #94A3B8;
+    margin-top: 2px;
+  }
+  .stat-card.accent-border {
+    border-left: 3px solid #0A2342;
+  }
+  .stat-card.yellow-border {
+    border-left: 3px solid #D97706;
+  }
+  .stat-card.blue-border {
+    border-left: 3px solid #3B82F6;
+  }
+  .stat-card.green-border {
+    border-left: 3px solid #16A34A;
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Browser chrome ────────────────────────────────────────── -->
+<div class="browser-chrome">
+  <div class="chrome-top">
+    <div class="chrome-dots">
+      <div class="chrome-dot red"></div>
+      <div class="chrome-dot yellow"></div>
+      <div class="chrome-dot green"></div>
+    </div>
+    <div class="chrome-nav">
+      <button>&#8592;</button>
+      <button>&#8594;</button>
+      <button>&#8635;</button>
+    </div>
+    <div class="chrome-address">
+      <span class="lock">&#128274;</span>
+      davidagency.app/dashboard
+    </div>
+  </div>
+  <div class="chrome-tabs">
+    <div class="chrome-tab">
+      <span class="favicon">D</span>
+      Applications — David Agency
+    </div>
+  </div>
+</div>
+
+<!-- ── App shell ─────────────────────────────────────────────── -->
+<div class="app-shell">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">DA</div>
+      David Agency
+    </div>
+    <div class="sidebar-divider"></div>
+
+    <div class="sidebar-section-label">Workspace</div>
+    <nav class="sidebar-nav">
+      <a class="nav-item active" href="#">
+        <span class="nav-icon">
+          <!-- folder icon -->
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+        </span>
+        Applications
+        <span class="nav-badge">5</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user">
+        <div class="user-avatar">R</div>
+        <div class="user-info">
+          <div class="user-name">Richard</div>
+          <div class="user-role">Agency Admin</div>
+        </div>
+      </div>
+      <a class="sign-out" href="#">Sign out</a>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <div class="main-content">
+
+    <!-- Top bar -->
+    <div class="topbar">
+      <div class="topbar-left">
+        <span class="page-title">Applications</span>
+      </div>
+      <div class="topbar-right">
+        <div class="search-wrapper">
+          <span class="search-icon">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </span>
+          <input class="search-input" type="text" placeholder="Search by name or DA-XXXX…" readonly />
+        </div>
+        <div class="btn-icon" title="Filter">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        </div>
+        <div class="btn-icon" title="Notifications">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filter tabs -->
+    <div class="filter-bar">
+      <div class="filter-tab active">
+        Raw
+        <span class="tab-count">3</span>
+      </div>
+      <div class="filter-sep"></div>
+      <div class="filter-tab">All <span class="tab-count">5</span></div>
+      <div class="filter-sep"></div>
+      <div class="filter-tab">Ready <span class="tab-count">1</span></div>
+      <div class="filter-sep"></div>
+      <div class="filter-tab">Submitted <span class="tab-count">1</span></div>
+      <div class="filter-sep"></div>
+      <div class="filter-tab">Done <span class="tab-count">1</span></div>
+    </div>
+
+    <!-- Body area (scrollable) -->
+    <div class="body-area">
+
+      <!-- Stats row -->
+      <div class="stats-row">
+        <div class="stat-card accent-border">
+          <div class="stat-label">Raw</div>
+          <div class="stat-value">3</div>
+          <div class="stat-sub">Awaiting data entry</div>
+        </div>
+        <div class="stat-card yellow-border">
+          <div class="stat-label">Ready</div>
+          <div class="stat-value">1</div>
+          <div class="stat-sub">Ready to submit</div>
+        </div>
+        <div class="stat-card blue-border">
+          <div class="stat-label">Submitted</div>
+          <div class="stat-value">1</div>
+          <div class="stat-sub">Pending eVisa decision</div>
+        </div>
+        <div class="stat-card green-border">
+          <div class="stat-label">Done</div>
+          <div class="stat-value">1</div>
+          <div class="stat-sub">Approved &amp; complete</div>
+        </div>
+      </div>
+
+      <!-- Applications table -->
+      <div class="section-card">
+        <div class="section-header">
+          <span class="section-title">Applications — Raw</span>
+          <span class="section-meta">Showing 3 of 5 total · Filtered: Raw</span>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Application ID</th>
+              <th>Full Name</th>
+              <th>Arrival Date</th>
+              <th>Submitted</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Row 1: Raw -->
+            <tr>
+              <td><span class="app-id">DA-2026-0043</span></td>
+              <td><span class="full-name">Sarah Johnson</span></td>
+              <td><span class="date-cell">Aug 12, 2026</span></td>
+              <td><span class="time-ago">2 min ago</span></td>
+              <td><span class="badge badge-raw">Raw</span></td>
+              <td>
+                <div class="actions-cell">
+                  <button class="btn btn-outline-primary">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                    Create Data
+                  </button>
+                  <button class="btn btn-ghost">Edit</button>
+                </div>
+              </td>
+            </tr>
+            <!-- Row 2: Raw (selected) -->
+            <tr class="selected">
+              <td><span class="app-id">DA-2026-0042</span></td>
+              <td><span class="full-name">Carlos Rodriguez</span></td>
+              <td><span class="date-cell">Jul 6, 2026</span></td>
+              <td><span class="time-ago">1 hr ago</span></td>
+              <td><span class="badge badge-raw">Raw</span></td>
+              <td>
+                <div class="actions-cell">
+                  <button class="btn btn-outline-primary">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                    Create Data
+                  </button>
+                  <button class="btn btn-ghost">Edit</button>
+                </div>
+              </td>
+            </tr>
+            <!-- Row 3: Ready -->
+            <tr>
+              <td><span class="app-id">DA-2026-0041</span></td>
+              <td><span class="full-name">Yuki Tanaka</span></td>
+              <td><span class="date-cell">Jul 15, 2026</span></td>
+              <td><span class="time-ago">3 hr ago</span></td>
+              <td><span class="badge badge-ready">Ready</span></td>
+              <td>
+                <div class="actions-cell">
+                  <button class="btn btn-primary">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"/></svg>
+                    Push to eVisa
+                  </button>
+                  <button class="btn btn-ghost">Edit</button>
+                </div>
+              </td>
+            </tr>
+            <!-- Row 4: Submitted -->
+            <tr>
+              <td><span class="app-id">DA-2026-0040</span></td>
+              <td><span class="full-name">Marie Dubois</span></td>
+              <td><span class="date-cell">Jun 28, 2026</span></td>
+              <td><span class="time-ago">Yesterday</span></td>
+              <td><span class="badge badge-submitted">Submitted</span></td>
+              <td>
+                <div class="actions-cell">
+                  <button class="btn btn-ghost">View</button>
+                </div>
+              </td>
+            </tr>
+            <!-- Row 5: Done -->
+            <tr>
+              <td><span class="app-id">DA-2026-0039</span></td>
+              <td><span class="full-name">Ahmed Al-Rashid</span></td>
+              <td><span class="date-cell">Jun 15, 2026</span></td>
+              <td><span class="time-ago">2 days ago</span></td>
+              <td><span class="badge badge-done">Done</span></td>
+              <td>
+                <div class="actions-cell">
+                  <button class="btn btn-ghost">View</button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Section label: Detail panel -->
+      <div class="section-label-row">
+        <span class="section-label-text">Selected Application — Detail View</span>
+        <div class="section-label-line"></div>
+      </div>
+
+      <!-- Detail panel: DA-2026-0042 Carlos Rodriguez -->
+      <div class="detail-panel">
+        <!-- Header -->
+        <div class="detail-header">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span class="detail-header-id">DA-2026-0042</span>
+          <span class="detail-header-name">— Carlos Rodriguez</span>
+          <span class="badge badge-raw">Raw</span>
+          <div class="detail-header-actions">
+            <button class="btn btn-ghost">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              Edit
+            </button>
+            <button class="btn btn-ghost">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Notification banner -->
+        <div class="notification-banner">
+          <span class="notif-icon">&#10003;</span>
+          <span><strong>Email notification sent</strong> — Confirmation email dispatched to carlos@email.com at 14:32.</span>
+        </div>
+
+        <!-- Body: fields + photos -->
+        <div class="detail-body">
+          <!-- Fields -->
+          <div class="detail-fields">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px;">
+              <div class="field-row">
+                <span class="field-label">Last Name</span>
+                <span class="field-value">Rodriguez</span>
+              </div>
+              <div class="field-row">
+                <span class="field-label">First Name</span>
+                <span class="field-value">Carlos</span>
+              </div>
+              <div class="field-row">
+                <span class="field-label">Email</span>
+                <span class="field-value" style="color: #1D4ED8;">carlos@email.com</span>
+              </div>
+              <div class="field-row">
+                <span class="field-label">Arrival Date</span>
+                <span class="field-value">July 6, 2026</span>
+              </div>
+              <div class="field-row">
+                <span class="field-label">Status</span>
+                <span class="field-value"><span class="badge badge-raw">Raw</span></span>
+              </div>
+              <div class="field-row">
+                <span class="field-label">Submitted</span>
+                <span class="field-value" style="font-size: 13px; color: #374151;">May 30, 2026 at 14:32</span>
+              </div>
+              <div class="field-row">
+                <span class="field-label">Application ID</span>
+                <span class="field-value" style="font-family: 'SF Mono','Fira Code',monospace; font-size: 13px; color: #1D4ED8;">DA-2026-0042</span>
+              </div>
+              <div class="field-row">
+                <span class="field-label">Nationality</span>
+                <span class="field-value">Mexican</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Photos -->
+          <div class="detail-photos">
+            <!-- Portrait -->
+            <div class="photo-card">
+              <div class="photo-placeholder">
+                <span class="photo-icon">
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                </span>
+                <span class="photo-hint">Portrait Photo</span>
+              </div>
+              <span class="photo-label">Portrait Photo</span>
+              <a class="photo-view-link" href="#">View ↗</a>
+            </div>
+            <!-- Passport -->
+            <div class="photo-card">
+              <div class="photo-placeholder">
+                <span class="photo-icon">
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#CBD5E1" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M8 10h8M8 14h5"/><circle cx="16" cy="12" r="1"/></svg>
+                </span>
+                <span class="photo-hint">Passport Page</span>
+              </div>
+              <span class="photo-label">Passport Photo</span>
+              <a class="photo-view-link" href="#">View ↗</a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Footer: action buttons -->
+        <div class="detail-footer">
+          <button class="btn btn-primary btn-full">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            Create Data
+          </button>
+          <button class="btn btn-ghost btn-full">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Manual Export
+          </button>
+        </div>
+      </div>
+
+    </div><!-- /body-area -->
+  </div><!-- /main-content -->
+</div><!-- /app-shell -->
+
+</body>
+</html>

@@ -1,0 +1,16 @@
+{
+  "name": "david-agency",
+  "private": true,
+  "packageManager": "pnpm@11.5.0",
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "typecheck": "turbo run typecheck",
+    "lint": "turbo run lint"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "supabase": "^2.102.0",
+    "turbo": "^2"
+  }
+}

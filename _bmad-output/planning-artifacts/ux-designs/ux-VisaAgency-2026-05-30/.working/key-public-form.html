@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>David Agency — Public Application Form Mockup</title>
+  <style>
+    /*
+     * ============================================================
+     * DAVID AGENCY — UX MOCKUP: Public Application Form (/)
+     * ============================================================
+     * Spine sections illustrated:
+     *   • US-001  Public-facing entry point: Application intake form
+     *   • US-002  File upload: Portrait photo & passport photo ingestion
+     *   • US-003  Form validation & reCAPTCHA gate before submission
+     *   • US-004  Success state: Application receipt confirmation with
+     *             unique application ID displayed to the applicant
+     *   • NFR-001 Branding & Authority theme token compliance
+     *   • NFR-003 Responsive layout (desktop card / mobile full-width)
+     * ============================================================
+     */
+
+    /* ---- Reset & Base ---------------------------------------- */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Geist Sans", "Inter", system-ui, -apple-system, sans-serif;
+      background: #F1F5F9;
+      color: #0F172A;
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ---- Browser chrome simulation --------------------------- */
+    .browser-frame {
+      width: 1280px;
+      min-height: 900px;
+      background: #FFFFFF;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.18);
+      margin: 24px auto;
+      border: 1px solid #D1D5DB;
+    }
+
+    .browser-chrome {
+      background: #F3F4F6;
+      border-bottom: 1px solid #D1D5DB;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .browser-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .browser-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .browser-dot.red    { background: #FF5F57; }
+    .browser-dot.yellow { background: #FFBD2E; }
+    .browser-dot.green  { background: #28C840; }
+
+    .browser-address-bar {
+      flex: 1;
+      background: #FFFFFF;
+      border: 1px solid #D1D5DB;
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-size: 12px;
+      color: #374151;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .browser-address-bar .lock-icon {
+      color: #16A34A;
+      font-size: 11px;
+    }
+
+    .browser-viewport {
+      display: flex;
+      background: #F1F5F9;
+      min-height: 860px;
+    }
+
+    /* ---- Two-column layout for side-by-side states ----------- */
+    .state-column {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 860px;
+      border-right: 2px dashed #CBD5E1;
+    }
+
+    .state-column:last-child {
+      border-right: none;
+    }
+
+    .state-label {
+      background: #0F172A;
+      color: #94A3B8;
+      text-align: center;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 5px 0;
+      font-weight: 600;
+    }
+
+    /* ---- Site Header ----------------------------------------- */
+    .site-header {
+      background: #0A2342;
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+
+    .site-header .wordmark {
+      font-size: 18px;
+      font-weight: 700;
+      color: #FFFFFF;
+      letter-spacing: -0.01em;
+    }
+
+    .site-header .tagline {
+      font-size: 13px;
+      color: #CBD5E1;
+    }
+
+    /* ---- Page body ------------------------------------------- */
+    .page-body {
+      flex: 1;
+      background: #F1F5F9;
+      padding: 32px 16px 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* ---- Form card ------------------------------------------- */
+    .form-card {
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.07);
+      padding: 28px 28px 32px;
+      width: 100%;
+      max-width: 560px;
+    }
+
+    .form-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: #0F172A;
+      margin-bottom: 6px;
+      letter-spacing: -0.02em;
+    }
+
+    .form-subtitle {
+      font-size: 14px;
+      color: #64748B;
+      margin-bottom: 28px;
+      line-height: 1.55;
+    }
+
+    /* ---- Field groups ---------------------------------------- */
+    .field-group {
+      margin-bottom: 18px;
+    }
+
+    .field-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #0F172A;
+      margin-bottom: 5px;
+    }
+
+    .field-label .required {
+      color: #DC2626;
+      margin-left: 2px;
+    }
+
+    .text-input {
+      width: 100%;
+      height: 42px;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      padding: 0 12px;
+      font-size: 14px;
+      color: #0F172A;
+      background: #FFFFFF;
+      transition: border-color 0.15s;
+      outline: none;
+      font-family: inherit;
+    }
+
+    .text-input::placeholder {
+      color: #94A3B8;
+    }
+
+    .text-input:focus {
+      border-color: #1D4ED8;
+      box-shadow: 0 0 0 3px rgba(29,78,216,0.1);
+    }
+
+    /* ---- Upload areas ---------------------------------------- */
+    .upload-area {
+      border: 1.5px dashed #CBD5E1;
+      border-radius: 8px;
+      padding: 20px 16px;
+      text-align: center;
+      cursor: pointer;
+      background: #F8FAFC;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .upload-area:hover {
+      border-color: #1D4ED8;
+      background: #EFF6FF;
+    }
+
+    .upload-icon {
+      display: inline-block;
+      width: 36px;
+      height: 36px;
+      margin-bottom: 8px;
+    }
+
+    /* Simple SVG arrow-up-from-bracket icon rendered inline */
+    .upload-icon svg {
+      width: 36px;
+      height: 36px;
+      stroke: #94A3B8;
+      fill: none;
+      stroke-width: 1.6;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .upload-main-text {
+      font-size: 13px;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .upload-main-text span {
+      color: #1D4ED8;
+    }
+
+    .upload-sub-text {
+      font-size: 12px;
+      color: #94A3B8;
+      margin-top: 3px;
+    }
+
+    /* ---- Date input & helper --------------------------------- */
+    .date-input-wrapper {
+      position: relative;
+    }
+
+    .date-input {
+      width: 100%;
+      height: 42px;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      padding: 0 12px;
+      font-size: 14px;
+      color: #0F172A;
+      background: #FFFFFF;
+      outline: none;
+      font-family: inherit;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    .date-input::placeholder { color: #94A3B8; }
+
+    .date-input:focus {
+      border-color: #1D4ED8;
+      box-shadow: 0 0 0 3px rgba(29,78,216,0.1);
+    }
+
+    .date-helper {
+      margin-top: 5px;
+      font-size: 12px;
+      color: #1D4ED8;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .date-helper .check {
+      font-weight: 700;
+    }
+
+    /* ---- reCAPTCHA placeholder -------------------------------- */
+    .recaptcha-placeholder {
+      border: 1px solid #D1D5DB;
+      border-radius: 4px;
+      background: #F9FAFB;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      gap: 14px;
+      margin-bottom: 20px;
+      margin-top: 6px;
+    }
+
+    .recaptcha-checkbox {
+      width: 22px;
+      height: 22px;
+      border: 2px solid #9CA3AF;
+      border-radius: 3px;
+      flex-shrink: 0;
+    }
+
+    .recaptcha-label {
+      font-size: 14px;
+      color: #374151;
+      flex: 1;
+    }
+
+    .recaptcha-branding {
+      text-align: center;
+      font-size: 8px;
+      color: #9CA3AF;
+      line-height: 1.4;
+    }
+
+    .recaptcha-logo {
+      width: 28px;
+      height: 28px;
+      margin: 0 auto 2px;
+      background: linear-gradient(135deg, #4285F4 0%, #34A853 50%, #EA4335 100%);
+      border-radius: 50%;
+    }
+
+    /* ---- Submit button ---------------------------------------- */
+    .submit-btn {
+      display: block;
+      width: 100%;
+      height: 48px;
+      background: #0A2342;
+      color: #FFFFFF;
+      font-size: 15px;
+      font-weight: 600;
+      font-family: inherit;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      letter-spacing: 0.01em;
+      transition: background 0.15s;
+      margin-bottom: 16px;
+    }
+
+    .submit-btn:hover {
+      background: #143566;
+    }
+
+    /* ---- Footer note ----------------------------------------- */
+    .footer-note {
+      text-align: center;
+      font-size: 12px;
+      color: #94A3B8;
+      line-height: 1.5;
+    }
+
+    .footer-note .lock {
+      margin-right: 4px;
+    }
+
+    /* ---- Divider between column sections --------------------- */
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    /* ====================================================
+       SUCCESS STATE
+       ==================================================== */
+
+    .success-card {
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.07);
+      padding: 40px 32px 44px;
+      width: 100%;
+      max-width: 560px;
+      text-align: center;
+    }
+
+    .success-icon-wrap {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: #DCFCE7;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 20px;
+    }
+
+    .success-icon-wrap svg {
+      width: 36px;
+      height: 36px;
+      stroke: #16A34A;
+      fill: none;
+      stroke-width: 2.4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .success-title {
+      font-size: 22px;
+      font-weight: 700;
+      color: #0F172A;
+      margin-bottom: 6px;
+      letter-spacing: -0.01em;
+    }
+
+    .success-id-label {
+      font-size: 13px;
+      color: #64748B;
+      margin-bottom: 10px;
+    }
+
+    .success-id-code {
+      font-family: "Menlo", "Monaco", "Consolas", monospace;
+      font-size: 28px;
+      font-weight: 700;
+      color: #0A2342;
+      letter-spacing: 0.04em;
+      background: #F1F5F9;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      padding: 12px 20px;
+      display: inline-block;
+      margin-bottom: 20px;
+    }
+
+    .success-email-note {
+      font-size: 14px;
+      color: #64748B;
+      margin-bottom: 8px;
+    }
+
+    .success-email-note strong {
+      color: #0F172A;
+      font-weight: 600;
+    }
+
+    .success-process-note {
+      font-size: 13px;
+      color: #94A3B8;
+      line-height: 1.55;
+      margin-bottom: 28px;
+    }
+
+    .success-divider {
+      height: 1px;
+      background: #F1F5F9;
+      border: none;
+      margin: 24px 0;
+    }
+
+    .success-steps {
+      text-align: left;
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      padding: 16px 18px;
+    }
+
+    .success-steps-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #64748B;
+      margin-bottom: 12px;
+    }
+
+    .success-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .success-step:last-child { margin-bottom: 0; }
+
+    .step-dot {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #E2E8F0;
+      color: #64748B;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .step-text {
+      font-size: 13px;
+      color: #374151;
+      line-height: 1.4;
+    }
+
+    .step-text strong {
+      color: #0F172A;
+      font-weight: 600;
+      display: block;
+    }
+
+    /* ---- Outer page wrapper ---------------------------------- */
+    .page-outer {
+      background: #F1F5F9;
+      min-height: 860px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="browser-frame">
+
+  <!-- Browser chrome -->
+  <div class="browser-chrome">
+    <div class="browser-dots">
+      <div class="browser-dot red"></div>
+      <div class="browser-dot yellow"></div>
+      <div class="browser-dot green"></div>
+    </div>
+    <div class="browser-address-bar">
+      <span class="lock-icon">🔒</span>
+      davidagency.vn
+    </div>
+  </div>
+
+  <!-- Viewport: two states side by side -->
+  <div class="browser-viewport">
+
+    <!-- ====================================================
+         LEFT COLUMN: EMPTY FORM STATE
+         ==================================================== -->
+    <div class="state-column">
+      <div class="state-label">State 1 — Empty Form (canonical)</div>
+
+      <!-- Site header -->
+      <div class="site-header">
+        <span class="wordmark">David Agency</span>
+        <span class="tagline">Vietnam E-Visa Application Service</span>
+      </div>
+
+      <!-- Page body -->
+      <div class="page-body">
+        <div class="form-card">
+
+          <h1 class="form-title">Visa Application Form</h1>
+          <p class="form-subtitle">Please fill in all fields carefully. All information must match your passport.</p>
+
+          <!-- 1. Name fields side by side -->
+          <div class="field-row">
+            <div class="field-group">
+              <label class="field-label">Last Name (Family Name) <span class="required">*</span></label>
+              <input class="text-input" type="text" placeholder="e.g. Rodriguez" />
+            </div>
+            <div class="field-group">
+              <label class="field-label">First Name (Given Name) <span class="required">*</span></label>
+              <input class="text-input" type="text" placeholder="e.g. Carlos" />
+            </div>
+          </div>
+
+          <!-- 3. Email -->
+          <div class="field-group">
+            <label class="field-label">Email Address <span class="required">*</span></label>
+            <input class="text-input" type="email" placeholder="e.g. carlos@email.com" />
+          </div>
+
+          <!-- 4. Portrait photo upload -->
+          <div class="field-group">
+            <label class="field-label">Portrait Photo <span class="required">*</span></label>
+            <div class="upload-area" tabindex="0" role="button" aria-label="Upload portrait photo">
+              <div class="upload-icon">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="17 8 12 3 7 8"/>
+                  <line x1="12" y1="3" x2="12" y2="15"/>
+                </svg>
+              </div>
+              <p class="upload-main-text"><span>Click to upload</span> or drag &amp; drop</p>
+              <p class="upload-sub-text">JPG, PNG, HEIC &mdash; Max 6MB</p>
+            </div>
+          </div>
+
+          <!-- 5. Passport photo upload -->
+          <div class="field-group">
+            <label class="field-label">Passport Photo <span class="required">*</span></label>
+            <div class="upload-area" tabindex="0" role="button" aria-label="Upload passport photo">
+              <div class="upload-icon">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <rect x="3" y="4" width="18" height="16" rx="2"/>
+                  <line x1="3" y1="9" x2="21" y2="9"/>
+                  <path d="M7 13h1M7 16h1"/>
+                  <path d="M12 13h5M12 16h3"/>
+                </svg>
+              </div>
+              <p class="upload-main-text"><span>Click to upload</span> or drag &amp; drop</p>
+              <p class="upload-sub-text">Photo of your passport information page</p>
+            </div>
+          </div>
+
+          <!-- 6. Arrival date -->
+          <div class="field-group">
+            <label class="field-label">Arrival Date <span class="required">*</span></label>
+            <div class="date-input-wrapper">
+              <input class="date-input" type="text" placeholder="DD / MM / YYYY" />
+            </div>
+            <div class="date-helper">
+              <span class="check">✓</span>
+              <span>You will arrive on &mdash;</span>
+            </div>
+          </div>
+
+          <!-- reCAPTCHA placeholder -->
+          <div class="recaptcha-placeholder">
+            <div class="recaptcha-checkbox"></div>
+            <span class="recaptcha-label">I'm not a robot</span>
+            <div class="recaptcha-branding">
+              <div class="recaptcha-logo"></div>
+              reCAPTCHA<br/>Privacy · Terms
+            </div>
+          </div>
+
+          <!-- Submit -->
+          <button class="submit-btn" type="submit">Submit Application</button>
+
+          <!-- Footer note -->
+          <p class="footer-note">
+            <span class="lock">🔒</span>
+            Your information is encrypted and stored securely. We will contact you via email once your application is received.
+          </p>
+
+        </div>
+      </div>
+    </div><!-- /left column -->
+
+
+    <!-- ====================================================
+         RIGHT COLUMN: SUCCESS STATE
+         ==================================================== -->
+    <div class="state-column">
+      <div class="state-label">State 2 — Success / Application Received</div>
+
+      <!-- Site header -->
+      <div class="site-header">
+        <span class="wordmark">David Agency</span>
+        <span class="tagline">Vietnam E-Visa Application Service</span>
+      </div>
+
+      <!-- Page body -->
+      <div class="page-body">
+        <div class="success-card">
+
+          <!-- Checkmark icon -->
+          <div class="success-icon-wrap">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+          </div>
+
+          <h2 class="success-title">Application Received!</h2>
+          <p class="success-id-label">Your application ID is:</p>
+          <div class="success-id-code">DA-2026-0042</div>
+
+          <p class="success-email-note">
+            We have sent a confirmation to <strong>carlos@email.com</strong>
+          </p>
+
+          <p class="success-process-note">
+            Our team will process your application and notify you via email. Typical processing time is 1&ndash;2 business days.
+          </p>
+
+          <hr class="success-divider" />
+
+          <!-- What happens next -->
+          <div class="success-steps">
+            <p class="success-steps-title">What happens next</p>
+
+            <div class="success-step">
+              <div class="step-dot">1</div>
+              <div class="step-text">
+                <strong>Application review</strong>
+                Our team verifies your documents and passport details.
+              </div>
+            </div>
+
+            <div class="success-step">
+              <div class="step-dot">2</div>
+              <div class="step-text">
+                <strong>E-visa issuance</strong>
+                We submit your application to the Vietnam Immigration Department.
+              </div>
+            </div>
+
+            <div class="success-step">
+              <div class="step-dot">3</div>
+              <div class="step-text">
+                <strong>Delivery</strong>
+                Your approved e-visa is sent to <strong>carlos@email.com</strong> as a PDF.
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+    </div><!-- /right column -->
+
+  </div><!-- /browser-viewport -->
+</div><!-- /browser-frame -->
+
+</body>
+</html>
