@@ -36,7 +36,34 @@ export async function POST(req: NextRequest) {
 
     const data = parseResult.data
 
-    // 3. Server-side validation of file size (max 6MB) and MIME type
+    // 3. Verify reCAPTCHA token
+    const recaptchaToken = formData.get('recaptchaToken')?.toString()
+    if (!recaptchaToken) {
+      return NextResponse.json(
+        { data: null, error: { message: 'Missing security token. Please try again.', code: 'VALIDATION_ERROR' } },
+        { status: 400 }
+      )
+    }
+
+    const recaptchaSecret = process.env.RECAPTCHA_SECRET_KEY
+    // Only verify if we have a real secret key, otherwise bypass (useful for dev without real keys)
+    if (recaptchaSecret && recaptchaSecret !== 'dummy_key') {
+      const verifyRes = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `secret=${recaptchaSecret}&response=${recaptchaToken}`
+      })
+      const verifyData = await verifyRes.json()
+      
+      if (!verifyData.success || (verifyData.score !== undefined && verifyData.score < 0.5)) {
+        return NextResponse.json(
+          { data: null, error: { message: 'Security check failed. Please try again.', code: 'VALIDATION_ERROR' } },
+          { status: 400 }
+        )
+      }
+    }
+
+    // 4. Server-side validation of file size (max 6MB) and MIME type
     const MAX_FILE_SIZE = 6 * 1024 * 1024
     const ALLOWED_MIME_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/heic', 'image/heif']
 
@@ -54,7 +81,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 4. Safe arrivalDate regex parsing
+    // 5. Safe arrivalDate regex parsing
     const match = data.arrivalDate!.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
     if (!match) {
       return NextResponse.json(
@@ -66,7 +93,7 @@ export async function POST(req: NextRequest) {
 
     const supabase = createServiceClient()
 
-    // 5. Insert row to generate app_id
+    // 6. Insert row to generate app_id
     // Note: RLS is bypassed because we use the Service Role Key
     const { data: dbData, error: dbError } = await supabase
       .from('applications')
@@ -90,7 +117,7 @@ export async function POST(req: NextRequest) {
 
     const { id, app_id } = dbData
 
-    // 6. Upload photos with forced .jpg extension and Content-Type (AC 4)
+    // 7. Upload photos with forced .jpg extension and Content-Type (AC 4)
     const portraitPath = `${app_id}/portrait.jpg`
     const passportPath = `${app_id}/passport.jpg`
 
@@ -115,7 +142,7 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // 7. Update application with storage paths
+    // 8. Update application with storage paths
     const { error: updateError } = await supabase
       .from('applications')
       .update({

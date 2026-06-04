@@ -1,15 +1,28 @@
 'use client'
 
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useGoogleReCaptcha } from 'react-google-recaptcha-v3'
+import ReCAPTCHA from 'react-google-recaptcha'
+import { toast } from 'sonner'
+import { LoaderCircle } from 'lucide-react'
+
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { applicationFormSchema, type ApplicationFormData } from '@/lib/form-schemas'
 import { ImageUpload } from '@/components/form/ImageUpload'
 import { DateInput } from '@/components/form/DateInput'
 
 export default function ApplicationForm() {
+  const router = useRouter()
+  const { executeRecaptcha } = useGoogleReCaptcha()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [useV2Fallback, setUseV2Fallback] = useState(false)
+  const [v2Token, setV2Token] = useState<string | null>(null)
   const {
     register,
     handleSubmit,
@@ -28,9 +41,75 @@ export default function ApplicationForm() {
     }
   })
 
-  // Story 2.5 sẽ thay () => {} bằng async submit handler gọi POST /api/applications
+  const onSubmit = async (data: ApplicationFormData) => {
+    let token: string | null = null
+    
+    if (useV2Fallback) {
+      if (!v2Token) {
+        toast.error('Please complete the reCAPTCHA challenge.')
+        return
+      }
+      token = v2Token
+    } else {
+      if (!executeRecaptcha) {
+        toast.error('Security check not ready. Please wait a moment and try again.')
+        return
+      }
+    }
+
+    setIsSubmitting(true)
+
+    try {
+      // 1. Get reCAPTCHA token
+      if (!useV2Fallback) {
+        token = await executeRecaptcha!('submit_application')
+        if (!token) {
+          setUseV2Fallback(true)
+          toast.error('Security check requires additional verification. Please complete the reCAPTCHA below.')
+          setIsSubmitting(false)
+          return
+        }
+      }
+
+      // 2. Prepare FormData
+      const formData = new FormData()
+      formData.append('lastName', data.lastName)
+      formData.append('firstName', data.firstName)
+      formData.append('email', data.email)
+      formData.append('arrivalDate', data.arrivalDate as string)
+      formData.append('portraitPhoto', data.portraitPhoto as File)
+      formData.append('passportPhoto', data.passportPhoto as File)
+      formData.append('recaptchaToken', token!)
+
+      // 3. Submit
+      const response = await fetch('/api/applications', {
+        method: 'POST',
+        body: formData,
+      })
+
+      let result
+      try {
+        result = await response.json()
+      } catch (e) {
+        throw new Error('Submission failed due to a network error. Please try again.')
+      }
+
+      if (!response.ok) {
+        throw new Error(result.error?.message || 'Submission failed')
+      }
+
+      // 4. Redirect to success page
+      router.push(`/success?id=${result.data.appId}`)
+    } catch (error) {
+      console.error('Submission error:', error)
+      const message = error instanceof Error ? error.message : 'Submission failed — please try again.'
+      toast.error(message, { duration: Infinity })
+      setIsSubmitting(false)
+    }
+  }
+
   return (
-    <form noValidate onSubmit={handleSubmit(() => {})} className="flex flex-col gap-6">
+    <form noValidate onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
       {/* Last Name */}
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="lastName">Last Name (Family Name)</Label>
@@ -129,6 +208,32 @@ export default function ApplicationForm() {
           />
         )}
       />
+      {/* reCAPTCHA v2 Fallback */}
+      {useV2Fallback && (
+        <div className="flex justify-center">
+          <ReCAPTCHA
+            sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || 'dummy_key'}
+            onChange={(token) => setV2Token(token)}
+            onExpired={() => setV2Token(null)}
+          />
+        </div>
+      )}
+
+      {/* Submit Button */}
+      <Button 
+        type="submit" 
+        className="w-full" 
+        disabled={isSubmitting || (!useV2Fallback && !executeRecaptcha)}
+      >
+        {isSubmitting ? (
+          <>
+            <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+            Submitting…
+          </>
+        ) : (
+          'Submit Application'
+        )}
+      </Button>
     </form>
   )
 }

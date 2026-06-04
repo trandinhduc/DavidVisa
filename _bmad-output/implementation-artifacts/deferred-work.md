@@ -43,3 +43,7 @@
 ## Deferred from: code review of 2-3-arrival-date-input-with-real-time-confirmation (2026-06-04)
 
 - Incomplete date entry on submit might show 'Required' instead of 'Invalid Format' if blur doesn't happen first — deferred, minor RHF interaction quirk
+
+## Deferred from: code review of 2-5-recaptcha-integration-submit-flow-and-success-page (2026-06-05)
+
+- reCAPTCHA validation silently bypassed if secret key is missing — Tạm hoãn theo yêu cầu của người dùng.
