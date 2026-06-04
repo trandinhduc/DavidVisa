@@ -33,9 +33,10 @@ export function ImageUpload({ value, onChange, error, label, id, 'aria-described
     }
   }, [value])
 
-  // Clear localError when the parent's RHF error prop changes (prevents stale messages)
+  // Clear local error when error prop is cleared
   useEffect(() => {
     if (!error) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLocalError(null)
     }
   }, [error])

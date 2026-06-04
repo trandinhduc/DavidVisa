@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-05-31
-last_updated: 2026-06-04 (story-2.2-done)
+last_updated: 2026-06-04 (story-2.4-done)
 project: VisaAgency
 project_key: NOKEY
 tracking_system: file-system
@@ -58,8 +58,8 @@ development_status:
   epic-2: in-progress
   2-1-public-form-page-layout-and-basic-fields: done
   2-2-photo-upload-component-with-heic-support: done
-  2-3-arrival-date-input-with-real-time-confirmation: backlog
-  2-4-application-submission-api-and-application-id-generation: backlog
+  2-3-arrival-date-input-with-real-time-confirmation: done
+  2-4-application-submission-api-and-application-id-generation: done
   2-5-recaptcha-integration-submit-flow-and-success-page: backlog
   epic-2-retrospective: optional
 

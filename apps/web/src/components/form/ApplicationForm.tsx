@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 import { applicationFormSchema, type ApplicationFormData } from '@/lib/form-schemas'
 import { ImageUpload } from '@/components/form/ImageUpload'
+import { DateInput } from '@/components/form/DateInput'
 
 export default function ApplicationForm() {
   const {
@@ -21,6 +22,7 @@ export default function ApplicationForm() {
       lastName: '',
       firstName: '',
       email: '',
+      arrivalDate: null,
       portraitPhoto: null,
       passportPhoto: null,
     }
@@ -78,6 +80,23 @@ export default function ApplicationForm() {
           </p>
         )}
       </div>
+
+      {/* Arrival Date */}
+      <Controller
+        control={control}
+        name="arrivalDate"
+        render={({ field }) => (
+          <DateInput
+            id="arrivalDate"
+            label="Date of Arrival"
+            value={field.value || null}
+            onChange={field.onChange}
+            onBlur={field.onBlur}
+            error={errors.arrivalDate?.message}
+            aria-describedby={errors.arrivalDate ? 'arrivalDate-error' : undefined}
+          />
+        )}
+      />
 
       {/* Portrait Photo */}
       <Controller

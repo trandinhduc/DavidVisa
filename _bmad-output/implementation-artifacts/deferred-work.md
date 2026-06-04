@@ -39,3 +39,7 @@
 
 - Race condition nhỏ trong `useEffect` previewUrl (`ImageUpload.tsx:25-34`) — stale objectURL hiển thị brief nếu value thay đổi nhanh; low severity, pre-existing React lifecycle pattern
 - `z.instanceof(File)` SSR unsafe (`form-schemas.ts:11-12`) — nếu schema được import trong server context tương lai sẽ gây ReferenceError; acceptable vì schema được khai báo trong `'use client'` component tree
+
+## Deferred from: code review of 2-3-arrival-date-input-with-real-time-confirmation (2026-06-04)
+
+- Incomplete date entry on submit might show 'Required' instead of 'Invalid Format' if blur doesn't happen first — deferred, minor RHF interaction quirk
