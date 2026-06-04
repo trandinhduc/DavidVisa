@@ -34,3 +34,8 @@
 - `applications` không có index trên `email` — email lookup chưa được yêu cầu trong story hiện tại
 - `update_updated_at_column()` function name quá generic — refactor khi pattern được reuse
 - Non-null assertions `!` trên env vars trong `supabase-client.ts` — central env validation là concern riêng
+
+## Deferred from: code review of 2-2-photo-upload-component-with-heic-support (2026-06-04)
+
+- Race condition nhỏ trong `useEffect` previewUrl (`ImageUpload.tsx:25-34`) — stale objectURL hiển thị brief nếu value thay đổi nhanh; low severity, pre-existing React lifecycle pattern
+- `z.instanceof(File)` SSR unsafe (`form-schemas.ts:11-12`) — nếu schema được import trong server context tương lai sẽ gây ReferenceError; acceptable vì schema được khai báo trong `'use client'` component tree
