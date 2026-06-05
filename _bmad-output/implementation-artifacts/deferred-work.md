@@ -47,3 +47,7 @@
 ## Deferred from: code review of 2-5-recaptcha-integration-submit-flow-and-success-page (2026-06-05)
 
 - reCAPTCHA validation silently bypassed if secret key is missing — Tạm hoãn theo yêu cầu của người dùng.
+
+## Deferred from: code review of 3-1-operator-authentication-and-route-protection (2026-06-05)
+- Hardcoded redirect ignores next param in middleware.ts
+- Unhandled getSession error in layout.tsx
