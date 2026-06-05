@@ -2,551 +2,260 @@ Review this diff and the project's source files using the bmad-review-edge-case-
 Examine boundary conditions, error handling, loading states, and edge cases.
 
 ```diff
-diff --git a/apps/web/package.json b/apps/web/package.json
-index 4f5f577..4041dd4 100644
---- a/apps/web/package.json
-+++ b/apps/web/package.json
-@@ -18,6 +18,8 @@
-     "@radix-ui/react-tabs": "^1.1.13",
-     "@supabase/ssr": "^0.10.3",
-     "@supabase/supabase-js": "^2.106.2",
-+    "@tanstack/react-query": "^5.101.0",
-+    "@tanstack/react-query-devtools": "^5.101.0",
-     "class-variance-authority": "^0.7.1",
-     "clsx": "^2.1.1",
-     "heic2any": "^0.0.4",
-diff --git a/apps/web/src/app/dashboard/layout.tsx b/apps/web/src/app/dashboard/(protected)/layout.tsx
-similarity index 51%
-rename from apps/web/src/app/dashboard/layout.tsx
-rename to apps/web/src/app/dashboard/(protected)/layout.tsx
-index 7ad4145..be81bd8 100644
---- a/apps/web/src/app/dashboard/layout.tsx
-+++ b/apps/web/src/app/dashboard/(protected)/layout.tsx
-@@ -1,7 +1,7 @@
- import type { ReactNode } from 'react'
- import { redirect } from 'next/navigation'
--import Link from 'next/link'
- import { createServerComponentClient } from '@/lib/supabase-server-component'
-+import { SidebarNav } from '@/components/dashboard/SidebarNav'
+diff --git a/apps/web/src/components/dashboard/ApplicationDetail.tsx b/apps/web/src/components/dashboard/ApplicationDetail.tsx
+index 65d8d9c..9b6f374 100644
+--- a/apps/web/src/components/dashboard/ApplicationDetail.tsx
++++ b/apps/web/src/components/dashboard/ApplicationDetail.tsx
+@@ -1,10 +1,13 @@
+ 'use client'
  
- export default async function DashboardLayout({ children }: { children: ReactNode }) {
-   const supabase = await createServerComponentClient()
-@@ -15,20;7,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
+ import { useState } from 'react'
+-import { Pencil } from 'lucide-react'
++import { Pencil, ChevronRight } from 'lucide-react'
++import { useQueryClient } from '@tanstack/react-query'
++import { toast } from 'sonner'
+ import { StatusBadge } from './StatusBadge'
+ import { ApplicationImages } from './ApplicationImages'
+ import { EditModal } from './EditModal'
++import { CreateDataModal } from './CreateDataModal'
+ import { Button } from '@/components/ui/button'
+ import type { ApplicationData } from '@david-agency/shared'
+ 
+@@ -36,14 +39,67 @@ function formatArrivalDate(dateStr: string | null | undefined): string {
+ }
+ 
+ export function ApplicationDetail({ application }: ApplicationDetailProps) {
++  const queryClient = useQueryClient()
+   const [editOpen, setEditOpen] = useState(false)
++  const [createDataOpen, setCreateDataOpen] = useState(false)
+ 
+-  // AC-1, AC-4: Edit button only visible when status is 'raw'
++  // Status-based visibility flags
++  // AC-3: Edit button only visible when status is 'raw'
+   const canEdit = application.status === 'raw'
++  // AC-3 (story 4.1): "Create Data" button only visible when status is 'raw'
++  const showCreateData = application.status === 'raw'
++  // AC-6: "Push to eVisa" shown when status is 'ready'
++  const showPushToEvisa = application.status === 'ready'
++
++  /**
++   * Handles the Raw → Ready status transition.
++   * AC-5: calls PUT /api/applications/[id]/status with { status: 'ready' }
++   * Uses optimistic update — rolls back on failure (AC-8).
++   */
++  const handleCreateDataConfirm = async () => {
++    // Optimistic update: immediately reflect Ready status in the cache
++    const previousData = queryClient.getQueryData<ApplicationData>([
++      'applications',
++      application.id,
++    ])
++
++    queryClient.setQueryData<ApplicationData>(['applications', application.id], (old: ApplicationData | undefined) => {
++      if (!old) return old
++      return { ...old, status: 'ready' }
++    })
++
++    // Close modal immediately (optimistic UX)
++    setCreateDataOpen(false)
++
++    try {
++      const res = await fetch(`/api/applications/${application.id}/status`, {
++        method: 'PUT',
++        headers: { 'Content-Type': 'application/json' },
++        body: JSON.stringify({ status: 'ready' }),
++      })
++
++      const json = await res.json()
++
++      if (!res.ok || json.error) {
++        throw new Error(json.error?.message ?? 'Failed to update status')
++      }
++
++      // Invalidate to ensure server state is consistent (AC-9: updated_at recorded)
++      await queryClient.invalidateQueries({ queryKey: ['applications', application.id] })
++    } catch {
++      // AC-8: Roll back optimistic update on failure
++      queryClient.setQueryData(['applications', application.id], previousData)
++
++      // AC-8: Persistent error toast
++      toast.error('Failed to update status — please try again.', {
++        duration: Infinity,
++      })
++    }
++  }
  
    return (
-     <div className="flex h-screen overflow-hidden">
--      {/* Sidebar placeholder — will be replaced in Story 3.2 */}
--      <aside className="w-60 shrink-0 bg-primary text-white flex flex-col">
--        <div className="px-4 py-5 border-b border-white/10">
--          <span className="text-sm font-semibold">David Agency</span>
--        </div>
--        <nav className="flex-1 px-2 py-3">
--          <Link
--            href="/dashboard"
--            className="flex items-center px-3 py-2 text-sm font-medium rounded text-white bg-white/15"
--          >
--            Applications
--          </Link>
--        </nav>
--      </aside>
-+      <SidebarNav />
+     <div className="space-y-8">
+-      {/* Header — Full Name + App ID + Status + Edit button */}
++      {/* Header — Full Name + App ID + Status + action buttons */}
+       <div className="flex items-start justify-between gap-4">
+         <div>
+           <h1 className="text-2xl font-semibold text-foreground">
+@@ -55,7 +111,8 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
+         </div>
+         <div className="flex items-center gap-3 shrink-0 pt-1">
+           <StatusBadge status={application.status} />
+-          {/* AC-1: Edit button visible only when status is 'raw'; hidden for ready/submitted/done (AC-4) */}
++
++          {/* AC-1 (story 3.5): Edit button visible only when status is 'raw'; hidden for ready/submitted/done */}
+           {canEdit && (
+             <Button
+               id="edit-application-btn"
+@@ -68,6 +125,33 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
+               Edit
+             </Button>
+           )}
++
++          {/* AC-3 (story 4.1): "Create Data" button — only visible when status is 'raw' */}
++          {showCreateData && (
++            <Button
++              id="create-data-btn"
++              variant="default"
++              size="sm"
++              onClick={() => setCreateDataOpen(true)}
++              className="flex items-center gap-1.5"
++            >
++              Create Data
++            </Button>
++          )}
++
++          {/* AC-6 (story 4.1): "Push to eVisa" button — shown when status is 'ready' (story 4.2 will wire this up) */}
++          {showPushToEvisa && (
++            <Button
++              id="push-to-evisa-btn"
++              variant="default"
++              size="sm"
++              className="flex items-center gap-1.5"
++              disabled
++            >
++              Push to eVisa
++              <ChevronRight className="h-3.5 w-3.5" />
++            </Button>
++          )}
+         </div>
+       </div>
  
-       {/* Main content */}
-       <main className="flex-1 p-6 overflow-auto bg-background">
-diff --git a/apps/web/src/app/dashboard/(protected)/page.tsx b/apps/web/src/app/dashboard/(protected)/page.tsx
-new file mode 100644
-index 0000000..71a5690
---- /dev/null
-+++ b/apps/web/src/app/dashboard/(protected)/page.tsx
-@@ -0,0 +1,79 @@
-+'use client'
+@@ -119,7 +203,7 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
+         <ApplicationImages applicationId={application.id} />
+       </div>
+ 
+-      {/* Edit Modal — AC-2: pre-filled with current application data; only mounted when status is 'raw' */}
++      {/* Edit Modal — only mounted when status is 'raw' */}
+       {canEdit && (
+         <EditModal
+           application={application}
+@@ -127,6 +211,15 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
+           onOpenChange={setEditOpen}
+         />
+       )}
 +
-+import { useState, useMemo } from 'react'
-+import { ApplicationFilters, type TabType } from '@/components/dashboard/ApplicationFilters'
-+import { ApplicationTable } from '@/components/dashboard/ApplicationTable'
-+import { useApplications } from '@/hooks/use-applications'
-+import type { ApplicationData } from '@david-agency/shared'
-+
-+export default function DashboardPage() {
-+  const [activeTab, setActiveTab] = useState<TabType>('raw')
-+  const [searchQuery, setSearchQuery] = useState('')
-+  
-+  const { data: applications = [], isLoading } = useApplications()
-+
-+  const counts = useMemo(() => {
-+    const defaultCounts: Record<TabType, number> = {
-+      all: 0,
-+      raw: 0,
-+      ready: 0,
-+      submitted: 0,
-+      done: 0,
-+    }
-+    
-+    applications.forEach((app: ApplicationData) => {
-+      defaultCounts.all++
-+      if (app.status in defaultCounts) {
-+        defaultCounts[app.status as TabType]++
-+      }
-+    })
-+    
-+    return defaultCounts
-+  }, [applications])
-+
-+  const filteredApplications = useMemo(() => {
-+    return applications.filter((app: ApplicationData) => {
-+      // Tab filter
-+      if (activeTab !== 'all' && app.status !== activeTab) {
-+        return false
-+      }
-+      
-+      // Search filter
-+      if (searchQuery.trim()) {
-+        const query = searchQuery.toLowerCase()
-+        const fullName = `${app.firstName} ${app.lastName}`.toLowerCase()
-+        const idMatch = app.appId.toLowerCase().includes(query)
-+        const nameMatch = fullName.includes(query)
-+        
-+        if (!idMatch && !nameMatch) {
-+          return false
-+        }
-+      }
-+      
-+      return true
-+    })
-+  }, [applications, activeTab, searchQuery])
-+
-+  return (
-+    <div className="space-y-6">
-+      <div>
-+        <h1 className="text-2xl font-semibold text-foreground mb-1">Applications</h1>
-+        <p className="text-sm text-muted-foreground">Manage and track visa applications.</p>
-+      </div>
-+      
-+      <ApplicationFilters
-+        activeTab={activeTab}
-+        setActiveTab={setActiveTab}
-+        searchQuery={searchQuery}
-+        setSearchQuery={setSearchQuery}
-+        counts={counts}
-+      />
-+      
-+      <ApplicationTable
-+        applications={filteredApplications}
-+        isLoading={isLoading}
-+        activeTab={activeTab}
-+      />
-+    </div>
-+  )
-+}
-diff --git a/apps/web/src/app/dashboard/page.tsx b/apps/web/src/app/dashboard/page.tsx
-deleted file mode 100644
-index 9618b45..0000000
---- a/apps/web/src/app/dashboard/page.tsx
-+++ /dev/null
-@@ -1,8 +0,0 @@
--export default function DashboardPage() {
--  return (
--    <div>
--      <h1 className="text-2xl font-bold text-foreground mb-2">Applications</h1>
--      <p className="text-muted-foreground">Application list will be built in Story 3.3.</p>
--    </div>
--  )
--}
-diff --git a/apps/web/src/app/layout.tsx b/apps/web/src/app/layout.tsx
-index d97cb5a..b671232 100644
---- a/apps/web/src/app/layout.tsx
-+++ b/apps/web/src/app/layout.tsx
-@@ -4,6 +4,8 @@ import { Geist, Geist_Mono } from "next/font/google";
- import { Toaster } from "@/components/ui/sonner";
- import "./globals.css";
- import RecaptchaProvider from "@/components/providers/RecaptchaProvider";
-+import { Providers } from "./providers";
-+
- const geistSans = Geist({
-   variable: "--font-geist-sans",
-   subsets: ["latin"],
-@@ -30,10 +32,12 @@ export default function RootLayout({
-       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-     >
-       <body className="min-h-full flex flex-col">
--        <RecaptchaProvider>
--          {children}
--          <Toaster position="bottom-center" />
--        </RecaptchaProvider>
-+        <Providers>
-+          <RecaptchaProvider>
-+            {children}
-+            <Toaster position="bottom-center" />
-+          </RecaptchaProvider>
-+        </Providers>
-       </body>
-     </html>
-   );
-diff --git a/apps/web/src/app/providers.tsx b/apps/web/src/app/providers.tsx
-new file mode 100644
-index 0000000..207e9fe
---- /dev/null
-+++ b/apps/web/src/app/providers.tsx
-@@ -0,0 +1,20 @@
-+'use client'
-+
-+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-+import { useState } from 'react'
-+
-+export function Providers({ children }: { children: React.ReactNode }) {
-+  const [queryClient] = useState(() => new QueryClient({
-+    defaultOptions: {
-+      queries: {
-+        staleTime: 60 * 1000, // 1 minute
-+      },
-+    },
-+  }))
-+
-+  return (
-+    <QueryClientProvider client={queryClient}>
-+      {children}
-+    </QueryClientProvider>
-+  )
-+}
-diff --git a/apps/web/src/components/dashboard/ApplicationFilters.tsx b/apps/web/src/components/dashboard/ApplicationFilters.tsx
-new file mode 100644
-index 0000000..e5f6bd0
---- /dev/null
-+++ b/apps/web/src/components/dashboard/ApplicationFilters.tsx
-@@ -0,0 +1,66 @@
-+import { Input } from "@/components/ui/input"
-+import { Search } from "lucide-react"
-+
-+export type TabType = "all" | "raw" | "ready" | "submitted" | "done"
-+
-+interface ApplicationFiltersProps {
-+  activeTab: TabType;
-+  setActiveTab: (tab: TabType) => void;
-+  searchQuery: string;
-+  setSearchQuery: (query: string) => void;
-+  counts: Record<TabType, number>;
-+}
-+
-+const TABS: { id: TabType; label: string }[] = [
-+  { id: "raw", label: "Raw" },
-+  { id: "all", label: "All" },
-+  { id: "ready", label: "Ready" },
-+  { id: "submitted", label: "Submitted" },
-+  { id: "done", label: "Done" },
-+]
-+
-+export function ApplicationFilters({
-+  activeTab,
-+  setActiveTab,
-+  searchQuery,
-+  setSearchQuery,
-+  counts,
-+}: ApplicationFiltersProps) {
-+  return (
-+    <div className="space-y-4">
-+      {/* Tabs */}
-+      <div className="flex items-center gap-6 border-b border-border">
-+        {TABS.map((tab) => (
-+          <button
-+            key={tab.id}
-+            onClick={() => setActiveTab(tab.id)}
-+            className={`flex items-center gap-2 pb-3 pt-2 text-sm font-medium transition-colors ${
-+              activeTab === tab.id
-+                ? "border-b-2 border-accent text-foreground"
-+                : "text-muted-foreground hover:text-foreground"
-+            }`}
-+          >
-+            {tab.label}
-+            {counts[tab.id] > 0 && (
-+              <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-+                {counts[tab.id]}
-+              </span>
-+            )}
-+          </button>
-+        ))}
-+      </div>
-+
-+      {/* Search */}
-+      <div className="relative max-w-sm">
-+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-+        <Input
-+          type="search"
-+          placeholder="Search by name or ID..."
-+          className="pl-8"
-+          value={searchQuery}
-+          onChange={(e) => setSearchQuery(e.target.value)}
++      {/* Create Data Modal — only mounted when status is 'raw' (AC-7) */}
++      {showCreateData && (
++        <CreateDataModal
++          open={createDataOpen}
++          onOpenChange={setCreateDataOpen}
++          onConfirm={handleCreateDataConfirm}
 +        />
-+      </div>
-+    </div>
-+  )
-+}
-diff --git a/apps/web/src/components/dashboard/ApplicationTable.tsx b/apps/web/src/components/dashboard/ApplicationTable.tsx
++      )}
+     </div>
+   )
+ }
+diff --git a/apps/web/src/components/dashboard/CreateDataModal.tsx b/apps/web/src/components/dashboard/CreateDataModal.tsx
 new file mode 100644
-index 0000000..0bf6cc7
+index 0000000..c921365
 --- /dev/null
-+++ b/apps/web/src/components/dashboard/ApplicationTable.tsx
-@@ -0,0 +1,118 @@
-+import {
-+  Table,
-+  TableBody,
-+  TableCell,
-+  TableHead,
-+  TableHeader,
-+  TableRow,
-+} from "@/components/ui/table"
-+import { Skeleton } from "@/components/ui/skeleton"
-+import { useRouter } from "next/navigation"
-+import { StatusBadge } from "./StatusBadge"
-+import type { ApplicationData } from "@david-agency/shared"
-+
-+interface ApplicationTableProps {
-+  applications: ApplicationData[];
-+  isLoading: boolean;
-+  activeTab: string;
-+}
-+
-+export function ApplicationTable({
-+  applications,
-+  isLoading,
-+  activeTab,
-+}: ApplicationTableProps) {
-+  const router = useRouter()
-+
-+  if (isLoading) {
-+    return (
-+      <div className="rounded-md border border-border bg-white">
-+        <Table>
-+          <TableHeader>
-+            <TableRow>
-+              <TableHead>Application ID</TableHead>
-+              <TableHead>Applicant Name</TableHead>
-+              <TableHead>Arrival Date</TableHead>
-+              <TableHead>Status</TableHead>
-+              <TableHead>Submitted At</TableHead>
-+            </TableRow>
-+          </TableHeader>
-+          <TableBody>
-+            {Array.from({ length: 5 }).map((_, i) => (
-+              <TableRow key={i}>
-+                <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-+                <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-+                <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-+                <TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
-+                <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-+              </TableRow>
-+            ))}
-+          </TableBody>
-+        </Table>
-+      </div>
-+    )
-+  }
-+
-+  if (applications.length === 0) {
-+    const statusText = activeTab === 'all' ? '' : activeTab
-+    return (
-+      <div className="flex flex-col items-center justify-center rounded-md border border-border border-dashed py-16 text-center">
-+        <h3 className="text-lg font-medium text-foreground">
-+          {activeTab === 'all' ? "No applications yet." : `No ${statusText} applications.`}
-+        </h3>
-+        <p className="mt-1 text-sm text-muted-foreground">
-+          Applications will appear here once they reach {activeTab === 'all' ? 'the system' : `${statusText} status`}.
-+        </p>
-+      </div>
-+    )
-+  }
-+
-+  return (
-+    <div className="rounded-md border border-border bg-white">
-+      <Table>
-+        <TableHeader>
-+          <TableRow>
-+            <TableHead>Application ID</TableHead>
-+            <TableHead>Applicant Name</TableHead>
-+            <TableHead>Arrival Date</TableHead>
-+            <TableHead>Status</TableHead>
-+            <TableHead>Submitted At</TableHead>
-+          </TableRow>
-+        </TableHeader>
-+        <TableBody>
-+          {applications.map((app) => (
-+            <TableRow
-+              key={app.id}
-+              className="cursor-pointer hover:bg-muted"
-+              onClick={() => router.push(`/dashboard/applications/${app.id}`)}
-+            >
-+              <TableCell className="font-mono text-xs text-muted-foreground">{app.appId}</TableCell>
-+              <TableCell className="font-medium">
-+                {app.lastName} {app.firstName}
-+              </TableCell>
-+              <TableCell>
-+                {new Intl.DateTimeFormat('en-US', {
-+                  month: 'short',
-+                  day: 'numeric',
-+                  year: 'numeric'
-+                }).format(new Date(app.arrivalDate))}
-+              </TableCell>
-+              <TableCell>
-+                <StatusBadge status={app.status} />
-+              </TableCell>
-+              <TableCell className="text-muted-foreground text-sm">
-+                {new Intl.DateTimeFormat('en-US', {
-+                  month: 'short',
-+                  day: 'numeric',
-+                  year: 'numeric',
-+                  hour: 'numeric',
-+                  minute: '2-digit'
-+                }).format(new Date(app.createdAt))}
-+              </TableCell>
-+            </TableRow>
-+          ))}
-+        </TableBody>
-+      </Table>
-+    </div>
-+  )
-+}
-diff --git a/apps/web/src/components/dashboard/SidebarNav.tsx b/apps/web/src/components/dashboard/SidebarNav.tsx
-new file mode 100644
-index 0000000..dd06b08
---- /dev/null
-+++ b/apps/web/src/components/dashboard/SidebarNav.tsx
-@@ -0,0 +1,72 @@
++++ b/apps/web/src/components/dashboard/CreateDataModal.tsx
+@@ -0,0 +1,92 @@
 +'use client'
 +
-+import Link from 'next/link'
-+import { usePathname, useRouter } from 'next/navigation'
-+import { LayoutDashboard, LogOut } from 'lucide-react'
-+import { createClient } from '@/lib/supabase-client'
++import { useState } from 'react'
++import { Loader2 } from 'lucide-react'
++import {
++  Dialog,
++  DialogContent,
++  DialogHeader,
++  DialogTitle,
++  DialogFooter,
++  DialogDescription,
++} from '@/components/ui/dialog'
++import { Button } from '@/components/ui/button'
 +
-+const navItems = [
-+  {
-+    label: 'Applications',
-+    href: '/dashboard',
-+    icon: LayoutDashboard,
-+  },
-+]
++interface CreateDataModalProps {
++  open: boolean
++  onOpenChange: (open: boolean) => void
++  /** Called when operator clicks Confirm. Should trigger the status update. */
++  onConfirm: () => Promise<void>
++}
 +
-+export function SidebarNav() {
-+  const pathname = usePathname()
-+  const router = useRouter()
++/**
++ * CreateDataModal — prompts the operator to confirm that application data is
++ * ready for submission, triggering the Raw → Ready status transition.
++ *
++ * AC-4: shadcn Dialog with "Confirm application data is ready for submission?"
++ *       prompt and a "Confirm" button.
++ */
++export function CreateDataModal({ open, onOpenChange, onConfirm }: CreateDataModalProps) {
++  const [isConfirming, setIsConfirming] = useState(false)
 +
-+  const handleLogout = async () => {
-+    const supabase = createClient()
-+    await supabase.auth.signOut()
-+    router.push('/dashboard/login')
-+    router.refresh()
++  const handleOpenChange = (isOpen: boolean) => {
++    // Prevent closing mid-confirmation
++    if (isConfirming) return
++    onOpenChange(isOpen)
++  }
++
++  const handleConfirm = async () => {
++    setIsConfirming(true)
++    try {
++      await onConfirm()
++      // onConfirm is responsible for closing the modal on success
++    } finally {
++      setIsConfirming(false)
++    }
 +  }
 +
 +  return (
-+    <aside className="w-60 shrink-0 bg-primary text-white flex flex-col h-screen">
-+      {/* Logo area — px-4 py-5 border-b border-white/10 per UX-DR3 */}
-+      <div className="px-4 py-5 border-b border-white/10">
-+        <span className="text-sm font-semibold">David Agency</span>
-+      </div>
++    <Dialog open={open} onOpenChange={handleOpenChange}>
++      <DialogContent className="sm:max-w-sm">
++        <DialogHeader>
++          <DialogTitle>Create Data</DialogTitle>
++          <DialogDescription>
++            Confirm application data is ready for submission?
++          </DialogDescription>
++        </DialogHeader>
 +
-+      {/* Nav items */}
-+      <nav className="flex-1 px-2 py-3 space-y-1">
-+        {navItems.map((item) => {
-+          // Active when exact match or when on a sub-route (e.g. /dashboard/applications/[id])
-+          const isActive =
-+            pathname === item.href ||
-+            (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'))
-+          const Icon = item.icon
-+          return (
-+            <Link
-+              key={item.href}
-+              href={item.href}
-+              className={[
-+                'flex items-center gap-2 px-3 py-2 text-sm font-medium rounded transition-colors',
-+                isActive
-+                  ? 'bg-white/15 text-white'
-+                  : 'text-white/80 hover:bg-white/10 hover:text-white',
-+              ].join(' ')}
-+            >
-+              <Icon className="h-4 w-4" />
-+              {item.label}
-+            </Link>
-+          )
-+        })}
-+      </nav>
++        <p className="text-sm text-muted-foreground">
++          This will transition the application status from{' '}
++          <span className="font-medium text-foreground">Raw</span> to{' '}
++          <span className="font-medium text-foreground">Ready</span>, enabling the Push to eVisa
++          workflow.
++        </p>
 +
-+      {/* Logout button at bottom */}
-+      <div className="px-2 pb-4 border-t border-white/10 pt-3">
-+        <button
-+          onClick={handleLogout}
-+          className="flex items-center gap-2 w-full px-3 py-2 text-sm font-medium rounded text-white/80 hover:bg-white/10 hover:text-white transition-colors"
-+        >
-+          <LogOut className="h-4 w-4" />
-+          Sign Out
-+        </button>
-+      </div>
-+    </aside>
++        <DialogFooter className="gap-2 sm:gap-0">
++          <Button
++            id="create-data-cancel-btn"
++            variant="ghost"
++            onClick={() => onOpenChange(false)}
++            disabled={isConfirming}
++          >
++            Cancel
++          </Button>
++          <Button
++            id="create-data-confirm-btn"
++            onClick={handleConfirm}
++            disabled={isConfirming}
++          >
++            {isConfirming ? (
++              <>
++                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
++                Confirming…
++              </>
++            ) : (
++              'Confirm'
++            )}
++          </Button>
++        </DialogFooter>
++      </DialogContent>
++    </Dialog>
 +  )
-+}
-diff --git a/apps/web/src/components/dashboard/StatusBadge.tsx b/apps/web/src/components/dashboard/StatusBadge.tsx
-new file mode 100644
-index 0000000..255232b
---- /dev/null
-+++ b/apps/web/src/components/dashboard/StatusBadge.tsx
-@@ -0,0 +1,23 @@
-+import type { ApplicationStatus } from '@david-agency/shared'
-+
-+const variants = {
-+  raw: 'bg-[#F1F5F9] text-[#64748B] border-[#E2E8F0]',
-+  ready: 'bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]',
-+  submitted: 'bg-[#DBEAFE] text-[#1E40AF] border-[#BFDBFE]',
-+  done: 'bg-[#DCFCE7] text-[#166534] border-[#BBF7D0]',
-+}
-+
-+const labels = {
-+  raw: 'Raw',
-+  ready: 'Ready',
-+  submitted: 'Submitted',
-+  done: 'Done',
-+}
-+
-+export function StatusBadge({ status }: { status: ApplicationStatus }) {
-+  return (
-+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border ${variants[status]}`}>
-+      {labels[status]}
-+    </span>
-+  )
-+}
-diff --git a/apps/web/src/hooks/use-applications.ts b/apps/web/src/hooks/use-applications.ts
-new file mode 100644
-index 0000000..101d784
---- /dev/null
-+++ b/apps/web/src/hooks/use-applications.ts
-@@ -0,0 +1,32 @@
-+import { useQuery } from '@tanstack/react-query'
-+import { createClient } from '@/lib/supabase-client'
-+import type { ApplicationData } from '@david-agency/shared'
-+
-+export function useApplications() {
-+  return useQuery({
-+    queryKey: ['applications'],
-+    queryFn: async () => {
-+      const supabase = createClient()
-+      const { data, error } = await supabase
-+        .from('applications')
-+        .select('*')
-+        .order('created_at', { ascending: false })
-+
-+      if (error) throw error
-+
-+      return data.map((item) => ({
-+        id: item.id,
-+        appId: item.app_id,
-+        lastName: item.last_name,
-+        firstName: item.first_name,
-+        email: item.email,
-+        arrivalDate: item.arrival_date,
-+        status: item.status,
-+        portraitPath: item.portrait_path,
-+        passportPath: item.passport_path,
-+        createdAt: item.created_at,
-+        updatedAt: item.updated_at,
-+      })) as ApplicationData[]
-+    }
-+  })
 +}
 ```

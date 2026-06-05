@@ -54,3 +54,7 @@
 
 ## Deferred from: code review of story-3.3 (2026-06-05)
 - Pagination/Limits — useApplications fetches all records (`select('*')`), which could lead to performance issues as data grows. [apps/web/src/hooks/use-applications.ts:9]
+
+## Deferred from: code review of story-4.1 (2026-06-05)
+- State update warning on unmounted component — When the dialog is closed optimistically before the API request completes, the finally block inside `CreateDataModal.tsx` attempts to set `isConfirming(false)` on an unmounted component, potentially triggering a React warning. [apps/web/src/components/dashboard/CreateDataModal.tsx:43]
+

@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { useGoogleReCaptcha } from 'react-google-recaptcha-v3'
 import ReCAPTCHA from 'react-google-recaptcha'
 import { toast } from 'sonner'
-import { LoaderCircle } from 'lucide-react'
+import { LoaderCircle, Lock } from 'lucide-react'
 
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -110,47 +110,51 @@ export default function ApplicationForm() {
 
   return (
     <form noValidate onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
-      {/* Last Name */}
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="lastName">Last Name (Family Name)</Label>
-        <Input
-          id="lastName"
-          aria-describedby={errors.lastName ? 'lastName-error' : undefined}
-          className={cn(errors.lastName && 'border-destructive')}
-          {...register('lastName')}
-        />
-        {errors.lastName && (
-          <p id="lastName-error" role="alert" className="text-xs text-destructive mt-1">
-            {errors.lastName.message}
-          </p>
-        )}
-      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Last Name */}
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="lastName">Last Name (Family Name) <span className="text-destructive ml-1">*</span></Label>
+          <Input
+            id="lastName"
+            placeholder="e.g. Rodriguez"
+            aria-describedby={errors.lastName ? 'lastName-error' : undefined}
+            className={cn("h-11", errors.lastName && 'border-destructive')}
+            {...register('lastName')}
+          />
+          {errors.lastName && (
+            <p id="lastName-error" role="alert" className="text-xs text-destructive mt-1">
+              {errors.lastName.message}
+            </p>
+          )}
+        </div>
 
-      {/* First Name */}
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="firstName">First Name (Given Name)</Label>
-        <Input
-          id="firstName"
-          aria-describedby={errors.firstName ? 'firstName-error' : undefined}
-          className={cn(errors.firstName && 'border-destructive')}
-          {...register('firstName')}
-        />
-        {errors.firstName && (
-          <p id="firstName-error" role="alert" className="text-xs text-destructive mt-1">
-            {errors.firstName.message}
-          </p>
-        )}
+        {/* First Name */}
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="firstName">First Name (Given Name) <span className="text-destructive ml-1">*</span></Label>
+          <Input
+            id="firstName"
+            placeholder="e.g. Carlos"
+            aria-describedby={errors.firstName ? 'firstName-error' : undefined}
+            className={cn("h-11", errors.firstName && 'border-destructive')}
+            {...register('firstName')}
+          />
+          {errors.firstName && (
+            <p id="firstName-error" role="alert" className="text-xs text-destructive mt-1">
+              {errors.firstName.message}
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Email Address */}
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="email">Email Address</Label>
+        <Label htmlFor="email">Email Address <span className="text-destructive ml-1">*</span></Label>
         <Input
           id="email"
           type="email"
-          placeholder="you@example.com"
+          placeholder="e.g. carlos@email.com"
           aria-describedby={errors.email ? 'email-error' : undefined}
-          className={cn(errors.email && 'border-destructive')}
+          className={cn("h-11", errors.email && 'border-destructive')}
           {...register('email')}
         />
         {errors.email && (
@@ -220,20 +224,26 @@ export default function ApplicationForm() {
       )}
 
       {/* Submit Button */}
-      <Button 
-        type="submit" 
-        className="w-full" 
-        disabled={isSubmitting || (!useV2Fallback && !executeRecaptcha)}
-      >
-        {isSubmitting ? (
-          <>
-            <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-            Submitting…
-          </>
-        ) : (
-          'Submit Application'
-        )}
-      </Button>
+      <div className="pt-2">
+        <Button 
+          type="submit" 
+          className="w-full h-12 text-[15px]" 
+          disabled={isSubmitting || (!useV2Fallback && !executeRecaptcha)}
+        >
+          {isSubmitting ? (
+            <>
+              <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
+              Submitting…
+            </>
+          ) : (
+            'Submit Application'
+          )}
+        </Button>
+        <p className="text-center text-xs text-muted-foreground mt-4 leading-relaxed">
+          <Lock className="w-3 h-3 inline mr-1 -mt-0.5" />
+          Your information is encrypted and stored securely. We will contact you via email once your application is received.
+        </p>
+      </div>
     </form>
   )
 }
