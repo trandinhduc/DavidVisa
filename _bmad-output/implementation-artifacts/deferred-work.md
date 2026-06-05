@@ -51,3 +51,6 @@
 ## Deferred from: code review of 3-1-operator-authentication-and-route-protection (2026-06-05)
 - Hardcoded redirect ignores next param in middleware.ts
 - Unhandled getSession error in layout.tsx
+
+## Deferred from: code review of story-3.3 (2026-06-05)
+- Pagination/Limits — useApplications fetches all records (`select('*')`), which could lead to performance issues as data grows. [apps/web/src/hooks/use-applications.ts:9]

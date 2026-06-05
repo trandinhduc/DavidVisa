@@ -4,6 +4,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 import RecaptchaProvider from "@/components/providers/RecaptchaProvider";
+import { Providers } from "./providers";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -30,10 +32,12 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <RecaptchaProvider>
-          {children}
-          <Toaster position="bottom-center" />
-        </RecaptchaProvider>
+        <Providers>
+          <RecaptchaProvider>
+            {children}
+            <Toaster position="bottom-center" />
+          </RecaptchaProvider>
+        </Providers>
       </body>
     </html>
   );

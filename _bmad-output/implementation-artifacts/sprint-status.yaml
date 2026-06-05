@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-05-31
-last_updated: 2026-06-05 (story-3.1-done)
+last_updated: 2026-06-05 (story-3.3-review-fix)
 project: VisaAgency
 project_key: NOKEY
 tracking_system: file-system
@@ -68,10 +68,10 @@ development_status:
   # ─────────────────────────────────────────────
   epic-3: in-progress
   3-1-operator-authentication-and-route-protection: done
-  3-2-dashboard-layout-and-sidebar-navigation: backlog
-  3-3-applications-list-with-filter-tabs-and-search: backlog
-  3-4-application-detail-view-with-signed-url-images: backlog
-  3-5-edit-application-and-one-way-status-tracking: backlog
+  3-2-dashboard-layout-and-sidebar-navigation: done
+  3-3-applications-list-with-filter-tabs-and-search: done
+  3-4-application-detail-view-with-signed-url-images: review
+  3-5-edit-application-and-one-way-status-tracking: review
   epic-3-retrospective: optional
 
   # ─────────────────────────────────────────────

@@ -2,859 +2,551 @@ Review this diff using the bmad-review-adversarial-general skill.
 Focus only on the diff provided below. No project context is provided.
 
 ```diff
-diff --git a/_bmad-output/implementation-artifacts/3-1-operator-authentication-and-route-protection.md b/_bmad-output/implementation-artifacts/3-1-operator-authentication-and-route-protection.md
-new file mode 100644
-index 0000000..6d97649
---- /dev/null
-+++ b/_bmad-output/implementation-artifacts/3-1-operator-authentication-and-route-protection.md
-@@ -0,0 +1,559 @@
-+---
-+baseline_commit: 5849e08034941ec0f322c058f2c7d5500af8b87c
-+---
-+
-+# Story 3.1: Operator Authentication & Route Protection
-+
-+**Story ID:** 3.1
-+**Story Key:** 3-1-operator-authentication-and-route-protection
-+**Status:** review
-+**Epic:** Epic 3 — Operator Monitors & Manages Applications
-+**Created:** 2026-06-05
-+
-+---
-+
-+## User Story
-+
-+**As an operator,**
-+I want to log in with email and password and have my session persist across reloads,
-+So that I can access the dashboard securely without re-authenticating every time.
-+
-+---
-+
-+## Acceptance Criteria (BDD)
-+
-+**AC-1: Unauthenticated redirect**
-+**Given** a visitor navigates to any `/dashboard/*` route while unauthenticated
-+**When** the middleware runs
-+**Then** they are immediately redirected to `/dashboard/login`
-+
-+**AC-2: Middleware scope**
-+**And** `middleware.ts` protects all `/dashboard` routes using Supabase session cookie
-+
-+**AC-3: Login page**
-+**And** the login page at `/dashboard/login` shows an email + password form with "Sign In" button
-+
-+**AC-4: Successful login**
-+**And** on successful login: Supabase Auth session is established; user is redirected to `/dashboard`
-+
-+**AC-5: Session persistence**
-+**And** session persists across browser reloads (cookie-based, not in-memory)
-+
-+**AC-6: Login failure**
-+**And** on login failure: inline error message "Invalid email or password." is shown; password field is cleared
-+
-+**AC-7: Already authenticated redirect**
-+**And** after login, navigating to `/dashboard/login` redirects to `/dashboard` (no re-login if already authenticated)
-+
-+---
-+
-+## Developer Context
-+
-+### ⚠️ CRITICAL ARCHITECTURE NOTES FOR THIS STORY
-+
-+**Supabase Auth with Next.js SSR** — A maioria das implementações erradas de autenticação Supabase com Next.js acontece por usar `createClient` do browser-side ao invés de `createServerClient` do `@supabase/ssr`. ESTE PROJETO JÁ USA `@supabase/ssr` para o browser client (`supabase-client.ts`). Para o middleware, você PRECISA usar `createServerClient` do `@supabase/ssr` — diferente do `createServiceClient` que existe em `supabase-server.ts` (que usa Service Role Key para API routes).
-+
-+**Você vai criar 2 novos patterns de Supabase client:**
-+1. `createServerClient` do `@supabase/ssr` para **middleware** (lê/escreve cookies via `request.cookies`)
-+2. `createServerClient` do `@supabase/ssr` para **Server Components** (lê cookies com `cookies()` do Next.js)
-+
-+**NÃO use** `createServiceClient` de `supabase-server.ts` no middleware ou no login page — essa função usa Service Role Key e é apenas para API routes que precisam bypass de RLS.
-+
-+---
-+
-+## Technical Requirements
-+
-+### Stack já instalado / verificado
-+
-+- **Framework:** Next.js App Router (TypeScript, `src/` directory)
-+- **Auth provider:** Supabase Auth (`@supabase/supabase-js`, `@supabase/ssr`)
-+- **UI Components disponíveis:** Button, Input, Label, Dialog, Badge, Table, Tabs, Skeleton, Sonner (todos em `src/components/ui/`)
-+- **CSS tokens:** brand tokens já configurados em `globals.css` — usar `bg-primary` (#0A2342), `border-white/10`, `text-white`, etc.
-+- **Shared types:** `packages/shared/src/types.ts` — `ApplicationData`, `ApplicationStatus`, `PushToEvisaMessage`
-+
-+### Dependências que PRECISAM SER VERIFICADAS antes de implementar
-+
-+Checar se `@supabase/ssr` está instalado em `apps/web/package.json`:
-+```bash
-+cd apps/web && cat package.json | grep supabase
-+```
-+Se não estiver, instalar:
-+```bash
-+pnpm add @supabase/ssr --filter web
-+```
-+
-+### Variáveis de ambiente necessárias (`.env.local`)
-+
-+```env
-+NEXT_PUBLIC_SUPABASE_URL=<your-supabase-url>
-+NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
-+# SUPABASE_SERVICE_ROLE_KEY já existe para API routes — NÃO usar no middleware
-+```
-+
-+---
-+
-+## File Structure — O que criar / modificar
-+
-+### NOVOS arquivos (criar):
-+
-+```
-+apps/web/src/
-+├── middleware.ts                           ← [NEW] Auth guard para /dashboard/*
-+├── lib/
-+│   └── supabase-middleware.ts              ← [NEW] createServerClient para middleware
-+│   └── supabase-server-component.ts        ← [NEW] createServerClient para Server Components
-+└── app/
-+    └── dashboard/
-+        ├── layout.tsx                      ← [NEW] Dashboard shell layout (sidebar + main)
-+        ├── page.tsx                        ← [NEW] Dashboard home (placeholder para Story 3.2/3.3)
-+        └── login/
-+            └── page.tsx                    ← [NEW] Login form page
-+```
-+
-+### ARQUIVOS EXISTENTES que NÃO devem ser modificados nesta story:
-+
-+- `src/lib/supabase-client.ts` — browser client, OK como está
-+- `src/lib/supabase-server.ts` — service role client para API routes, não tocar
-+- `src/app/layout.tsx` — root layout OK, não precisa mudar
-+- `src/app/globals.css` — CSS tokens OK
-+- `src/components/ui/*` — todos os componentes OK, usar como está
-+
-+---
-+
-+## Implementation Guide
-+
-+### 1. `src/lib/supabase-middleware.ts` [NEW]
-+
-+Cria o Supabase client para uso NO MIDDLEWARE. Este client gerencia automaticamente a renovação de tokens via cookies.
-+
-+```typescript
-+import { createServerClient } from '@supabase/ssr'
-+import type { NextRequest, NextResponse } from 'next/server'
-+import type { Database } from '@/types/supabase'
-+
-+export function createMiddlewareClient(request: NextRequest, response: NextResponse) {
-+  return createServerClient<Database>(
-+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-+    {
-+      cookies: {
-+        getAll() {
-+          return request.cookies.getAll()
-+        },
-+        setAll(cookiesToSet) {
-+          cookiesToSet.forEach(({ name, value }) =>
-+            request.cookies.set(name, value)
-+          )
-+          cookiesToSet.forEach(({ name, value, options }) =>
-+            response.cookies.set(name, value, options)
-+          )
-+        },
-+      },
-+    }
-+  )
-+}
-+```
-+
-+### 2. `src/lib/supabase-server-component.ts` [NEW]
-+
-+Para Server Components (não API routes — essas usam `supabase-server.ts`).
-+
-+```typescript
-+import { createServerClient } from '@supabase/ssr'
-+import { cookies } from 'next/headers'
-+import type { Database } from '@/types/supabase'
-+
-+export async function createServerComponentClient() {
-+  const cookieStore = await cookies()
-+  return createServerClient<Database>(
-+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-+    {
-+      cookies: {
-+        getAll() {
-+          return cookieStore.getAll()
-+        },
-+        setAll(cookiesToSet) {
-+          try {
-+            cookiesToSet.forEach(({ name, value, options }) =>
-+              cookieStore.set(name, value, options)
-+            )
-+          } catch {
-+            // Server Components não podem setar cookies — ignorar silenciosamente
-+            // (o middleware já cuida da renovação)
-+          }
-+        },
-+      },
-+    }
-+  )
-+}
-+```
-+
-+### 3. `src/middleware.ts` [NEW]
-+
-+O middleware protege TODAS as rotas `/dashboard/*`. Usa `createMiddlewareClient` para verificar sessão via cookie.
-+
-+**Lógica:**
-+- Se path começa com `/dashboard` E path NÃO É `/dashboard/login`:
-+  - Checar sessão
-+  - Se não autenticado → redirect para `/dashboard/login`
-+- Se path É `/dashboard/login`:
-+  - Checar sessão
-+  - Se já autenticado → redirect para `/dashboard`
-+- Sempre retornar `response` (não `NextResponse.next()` puro) para que os cookies Supabase sejam propagados corretamente
-+
-+```typescript
-+import { NextRequest, NextResponse } from 'next/server'
-+import { createMiddlewareClient } from '@/lib/supabase-middleware'
-+
-+export async function middleware(request: NextRequest) {
-+  const response = NextResponse.next({ request })
-+  const supabase = createMiddlewareClient(request, response)
-+
-+  // Refresh session — CRÍTICO: deve ser chamado antes de qualquer check
-+  const { data: { session } } = await supabase.auth.getSession()
-+
-+  const { pathname } = request.nextUrl
-+
-+  // Proteger todas as rotas /dashboard/* exceto /dashboard/login
-+  if (pathname.startsWith('/dashboard') && pathname !== '/dashboard/login') {
-+    if (!session) {
-+      const loginUrl = new URL('/dashboard/login', request.url)
-+      return NextResponse.redirect(loginUrl)
-+    }
-+  }
-+
-+  // Se já autenticado e tenta acessar /dashboard/login → redirecionar para /dashboard
-+  if (pathname === '/dashboard/login' && session) {
-+    const dashboardUrl = new URL('/dashboard', request.url)
-+    return NextResponse.redirect(dashboardUrl)
-+  }
-+
-+  return response
-+}
-+
-+export const config = {
-+  matcher: ['/dashboard/:path*'],
-+}
-+```
-+
-+### 4. `src/app/dashboard/login/page.tsx` [NEW]
-+
-+Login page — `'use client'` pois tem estado e eventos. Usa Supabase browser client para `signInWithPassword`.
-+
-+**Estrutura visual:**
-+- Página centrada verticalmente, fundo claro (`bg-muted`)
-+- Card branco, sombra suave, max-w-sm
-+- Logo/título "David Agency" ou "Operator Login"
-+- Email + Password inputs com labels
-+- "Sign In" button (primary, full width)
-+- Error inline abaixo do form (NÃO toast) — texto "Invalid email or password."
-+- Password field resetado em caso de erro
-+
-+```typescript
-+'use client'
-+
-+import { useState } from 'react'
-+import { useRouter } from 'next/navigation'
-+import { createClient } from '@/lib/supabase-client'
-+import { Button } from '@/components/ui/button'
-+import { Input } from '@/components/ui/input'
-+import { Label } from '@/components/ui/label'
-+import { LoaderCircle } from 'lucide-react'
-+
-+export default function LoginPage() {
-+  const router = useRouter()
-+  const [email, setEmail] = useState('')
-+  const [password, setPassword] = useState('')
-+  const [error, setError] = useState<string | null>(null)
-+  const [isLoading, setIsLoading] = useState(false)
-+
-+  const handleSubmit = async (e: React.FormEvent) => {
-+    e.preventDefault()
-+    setError(null)
-+    setIsLoading(true)
-+
-+    const supabase = createClient()
-+    const { error: authError } = await supabase.auth.signInWithPassword({
-+      email,
-+      password,
-+    })
-+
-+    if (authError) {
-+      setError('Invalid email or password.')
-+      setPassword('')  // AC-6: password field cleared on failure
-+      setIsLoading(false)
-+      return
-+    }
-+
-+    // AC-4: redirect to /dashboard on success
-+    router.push('/dashboard')
-+    router.refresh()  // força o middleware a re-verificar a sessão
-+  }
-+
-+  return (
-+    <div className="min-h-screen bg-muted flex items-center justify-center px-4">
-+      <div className="w-full max-w-sm bg-white rounded-lg shadow-md p-8">
-+        {/* Header */}
-+        <div className="mb-6 text-center">
-+          <h1 className="text-2xl font-bold text-primary">David Agency</h1>
-+          <p className="text-sm text-muted-foreground mt-1">Operator Sign In</p>
-+        </div>
-+
-+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-+          <div className="flex flex-col gap-1.5">
-+            <Label htmlFor="email">Email</Label>
-+            <Input
-+              id="email"
-+              type="email"
-+              autoComplete="email"
-+              value={email}
-+              onChange={(e) => setEmail(e.target.value)}
-+              required
-+            />
-+          </div>
-+
-+          <div className="flex flex-col gap-1.5">
-+            <Label htmlFor="password">Password</Label>
-+            <Input
-+              id="password"
-+              type="password"
-+              autoComplete="current-password"
-+              value={password}
-+              onChange={(e) => setPassword(e.target.value)}
-+              required
-+            />
-+          </div>
-+
-+          {/* AC-6: inline error message */}
-+          {error && (
-+            <p role="alert" className="text-sm text-destructive">
-+              {error}
-+            </p>
-+          )}
-+
-+          <Button type="submit" className="w-full mt-2" disabled={isLoading}>
-+            {isLoading ? (
-+              <>
-+                <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-+                Signing in…
-+              </>
-+            ) : (
-+              'Sign In'
-+            )}
-+          </Button>
-+        </form>
-+      </div>
-+    </div>
-+  )
-+}
-+```
-+
-+### 5. `src/app/dashboard/layout.tsx` [NEW]
-+
-+Layout shell para o dashboard. Verifica sessão server-side e faz redirect se não autenticado (defense in depth além do middleware). Será expandido na Story 3.2 com a sidebar real.
-+
-+**Nota para dev agent:** A sidebar completa (SidebarNav, nav items, brand, etc.) é implementada na Story 3.2. NESTA story, o layout só precisa:
-+1. Verificar sessão server-side
-+2. Renderizar um wrapper básico que os filhos vão usar
-+3. Ter `{children}` funcionando
-+
-+```typescript
-+import type { ReactNode } from 'react'
-+import { redirect } from 'next/navigation'
-+import { createServerComponentClient } from '@/lib/supabase-server-component'
-+
-+export default async function DashboardLayout({ children }: { children: ReactNode }) {
-+  const supabase = await createServerComponentClient()
-+  const { data: { session } } = await supabase.auth.getSession()
-+
-+  if (!session) {
-+    redirect('/dashboard/login')
-+  }
-+
-+  return (
-+    <div className="flex h-screen overflow-hidden">
-+      {/* Sidebar placeholder — será substituído na Story 3.2 */}
-+      <aside className="w-60 shrink-0 bg-primary text-white flex flex-col">
-+        <div className="px-4 py-5 border-b border-white/10">
-+          <span className="text-sm font-semibold">David Agency</span>
-+        </div>
-+        <nav className="flex-1 px-2 py-3">
-+          <a
-+            href="/dashboard"
-+            className="flex items-center px-3 py-2 text-sm font-medium rounded text-white bg-white/15"
-+          >
-+            Applications
-+          </a>
-+        </nav>
-+      </aside>
-+
-+      {/* Main content */}
-+      <main className="flex-1 p-6 overflow-auto bg-background">
-+        {children}
-+      </main>
-+    </div>
-+  )
-+}
-+```
-+
-+### 6. `src/app/dashboard/page.tsx` [NEW]
-+
-+Placeholder para o dashboard home. Será substituído pela applications list na Story 3.3.
-+
-+```typescript
-+export default function DashboardPage() {
-+  return (
-+    <div>
-+      <h1 className="text-2xl font-bold text-foreground mb-2">Applications</h1>
-+      <p className="text-muted-foreground">Application list will be built in Story 3.3.</p>
-+    </div>
-+  )
-+}
-+```
-+
-+---
-+
-+## Architecture Compliance Checklist
-+
-+- [ ] `middleware.ts` na raiz de `src/` (não em `app/`) — Next.js exige isso
-+- [ ] `matcher` no `config` exportado — limitar o middleware apenas às rotas necessárias
-+- [ ] Usar `@supabase/ssr` `createServerClient` no middleware e server components — NUNCA `createClient` de `@supabase/supabase-js` nesses contextos
-+- [ ] Não usar `createServiceClient` de `supabase-server.ts` no middleware/login — esse usa Service Role Key
-+- [ ] Password field resetado em caso de erro de login (AC-6)
-+- [ ] `router.refresh()` após login bem-sucedido para forçar middleware re-check
-+- [ ] Layout server component com redirect de defense-in-depth além do middleware
-+- [ ] Não usar `getUser()` em vez de `getSession()` no middleware — `getSession()` é suficiente e mais rápido para middleware (não faz network request extra para Supabase Auth server)
-+
-+---
-+
-+## Naming Conventions (obrigatório)
-+
-+| Tipo | Convenção | Exemplo |
-+|---|---|---|
-+| Components | PascalCase.tsx | `LoginPage`, `DashboardLayout` |
-+| Lib files | kebab-case.ts | `supabase-middleware.ts` |
-+| CSS classes | Tailwind tokens | `bg-primary`, `text-white/80` |
-+| API patterns | não aplicável nesta story | — |
-+
-+---
-+
-+## Testing Guide
-+
-+### Manual Testing Flow
-+
-+1. **Acesso não autenticado:** Abrir `http://localhost:3000/dashboard` → deve redirecionar para `/dashboard/login`
-+2. **Acesso a sub-rotas:** Tentar `http://localhost:3000/dashboard/applications/qualquer-coisa` → deve redirecionar para `/dashboard/login`
-+3. **Login com credenciais inválidas:** Email/senha errados → mensagem "Invalid email or password.", password limpo
-+4. **Login com credenciais válidas:** Redireciona para `/dashboard`, sidebar aparece
-+5. **Persistência de sessão:** Após login, recarregar a página → ainda na `/dashboard` sem re-login
-+6. **Redirect de autenticado:** Quando logado, acessar `/dashboard/login` → redireciona para `/dashboard`
-+7. **Logout (se implementar):** Após logout, acessar `/dashboard` → redireciona para `/dashboard/login`
-+
-+### Verifications pré-commit
-+
-+```bash
-+cd apps/web
-+pnpm typecheck
-+pnpm lint
-+```
-+
-+Ambos devem passar com zero erros.
-+
-+---
-+
-+## Known Patterns from Previous Stories
-+
-+### Como os patterns de Epic 2 informam esta story
-+
-+- **Supabase client pattern:** Epic 2 usa `createServiceClient()` de `supabase-server.ts` (Service Role Key) em API routes. Para Auth, usar o `createServerClient` do `@supabase/ssr` que trabalha com Anon Key + cookies.
-+- **Error handling:** Epic 2 retorna erros inline no form, não via toast. A login page segue o mesmo padrão — erro inline, não Sonner.
-+- **Componentes UI:** `Button`, `Input`, `Label` já instalados e funcionais. Usar exatamente como nos componentes do form da Epic 2 (ver `ApplicationForm.tsx`).
-+- **Naming pattern:** Arquivos lib em kebab-case, componentes em PascalCase — seguir o padrão já estabelecido.
-+- **`router.push()` + `router.refresh()`:** Usar ambos após auth para garantir que o Next.js Router cache seja invalidado e o middleware re-verifique a sessão.
-+
-+---
-+
-+## Important: What NOT to build in this story
-+
-+Esta story cobre APENAS autenticação e proteção de rotas. O seguinte é fora do escopo e deve ser deixado para stories subsequentes:
-+
-+- ❌ Sidebar navigation completa com ícones e múltiplos nav items (→ Story 3.2)
-+- ❌ Applications table, filtros, search (→ Story 3.3)
-+- ❌ Application detail page (→ Story 3.4)
-+- ❌ Edit modal, status tracking (→ Story 3.5)
-+- ❌ Logout button/functionality (pode ser adicionado junto com a sidebar na 3.2)
-+- ❌ Notification badge (→ Story 5.4)
-+
-+---
-+
-+## Story Completion Status
-+
-+- [x] `src/lib/supabase-middleware.ts` criado
-+- [x] `src/lib/supabase-server-component.ts` criado
-+- [x] `src/middleware.ts` criado com matcher correto
-+- [x] `src/app/dashboard/login/page.tsx` criado
-+- [x] `src/app/dashboard/layout.tsx` criado (placeholder de sidebar OK)
-+- [x] `src/app/dashboard/page.tsx` criado (placeholder OK)
-+- [x] Verificado: unauthenticated redirect para `/dashboard/login` funciona (middleware + layout defense-in-depth)
-+- [x] Verificado: login com credenciais válidas redireciona para `/dashboard`
-+- [x] Verificado: login com credenciais inválidas mostra erro e reseta password
-+- [x] Verificado: sessão persiste após reload (cookie-based via @supabase/ssr)
-+- [x] Verificado: `/dashboard/login` com sessão ativa redireciona para `/dashboard`
-+- [x] `pnpm typecheck` passa (0 errors)
-+- [x] `pnpm lint` passa (0 errors, 1 pre-existing warning em arquivo não relacionado)
-+
-+---
-+
-+## Dev Agent Record
-+
-+### Implementation Plan
-+
-+- Criado `supabase-middleware.ts` usando `createServerClient` do `@supabase/ssr` com leitura/escrita de cookies via `request`/`response` do Next.js middleware
-+- Criado `supabase-server-component.ts` usando `createServerClient` do `@supabase/ssr` com `cookies()` do Next.js — silencia erro no `setAll` pois Server Components não podem setar cookies
-+- Criado `middleware.ts` na raiz de `src/` com matcher `/dashboard/:path*` — verifica sessão antes de qualquer redirect, sempre retorna o objeto `response` para propagar cookies Supabase
-+- Criado `login/page.tsx` como Client Component com estado controlado para email/password, inline error message (não toast), password resetado em caso de erro (AC-6), `router.push('/dashboard') + router.refresh()` após login bem-sucedido
-+- Criado `dashboard/layout.tsx` como Server Component com verificação defense-in-depth de sessão além do middleware
-+- Criado `dashboard/page.tsx` como placeholder para Story 3.3
-+- Padrão arquitetural: `supabase-client.ts` (browser) → login form; `supabase-middleware.ts` (SSR) → middleware; `supabase-server-component.ts` (SSR) → layout/server components; `supabase-server.ts` (service role) → API routes apenas
-+
-+### Completion Notes
-+
-+✅ AC-1: Middleware redireciona rotas `/dashboard/*` não autenticadas para `/dashboard/login`
-+✅ AC-2: `middleware.ts` protege todas as rotas `/dashboard` via cookie de sessão Supabase
-+✅ AC-3: Login page em `/dashboard/login` com form email + password + botão "Sign In"
-+✅ AC-4: Login bem-sucedido → sessão Supabase estabelecida + redirect para `/dashboard`
-+✅ AC-5: Sessão cookie-based via `@supabase/ssr` — persiste entre reloads
-+✅ AC-6: Erro de login → mensagem "Invalid email or password." inline + password field cleared
-+✅ AC-7: `/dashboard/login` com sessão ativa → redirect para `/dashboard`
-+✅ `pnpm typecheck` — 0 errors
-+✅ `pnpm lint` — 0 errors
-+
-+### Debug Log
-+
-+- `@supabase/ssr ^0.10.3` já instalado — nenhuma instalação adicional necessária
-+- `supabase-client.ts` existente já usa `createBrowserClient` do `@supabase/ssr` — confirmado OK para uso no login page Client Component
-+
-+---
-+
-+## File List
-+
-+### Novos arquivos criados:
-+- `apps/web/src/lib/supabase-middleware.ts`
-+- `apps/web/src/lib/supabase-server-component.ts`
-+- `apps/web/src/middleware.ts`
-+- `apps/web/src/app/dashboard/login/page.tsx`
-+- `apps/web/src/app/dashboard/layout.tsx`
-+- `apps/web/src/app/dashboard/page.tsx`
-+
-+### Arquivos modificados:
-+- `_bmad-output/implementation-artifacts/3-1-operator-authentication-and-route-protection.md` (story file)
-+- `_bmad-output/implementation-artifacts/sprint-status.yaml` (status update)
-+
-+---
-+
-+## Change Log
-+
-+| Data | Alteração |
-+|------|----------|
-+| 2026-06-05 | Implementação completa de autenticação e proteção de rotas (Story 3.1) — middleware Supabase SSR, login page, dashboard shell layout, placeholder page |
-diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
-index 13a4ae6..7363fa0 100644
---- a/_bmad-output/implementation-artifacts/sprint-status.yaml
-+++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
-@@ -35,7 +35,7 @@
- # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
+diff --git a/apps/web/package.json b/apps/web/package.json
+index 4f5f577..4041dd4 100644
+--- a/apps/web/package.json
++++ b/apps/web/package.json
+@@ -18,6 +18,8 @@
+     "@radix-ui/react-tabs": "^1.1.13",
+     "@supabase/ssr": "^0.10.3",
+     "@supabase/supabase-js": "^2.106.2",
++    "@tanstack/react-query": "^5.101.0",
++    "@tanstack/react-query-devtools": "^5.101.0",
+     "class-variance-authority": "^0.7.1",
+     "clsx": "^2.1.1",
+     "heic2any": "^0.0.4",
+diff --git a/apps/web/src/app/dashboard/layout.tsx b/apps/web/src/app/dashboard/(protected)/layout.tsx
+similarity index 51%
+rename from apps/web/src/app/dashboard/layout.tsx
+rename to apps/web/src/app/dashboard/(protected)/layout.tsx
+index 7ad4145..be81bd8 100644
+--- a/apps/web/src/app/dashboard/layout.tsx
++++ b/apps/web/src/app/dashboard/(protected)/layout.tsx
+@@ -1,7 +1,7 @@
+ import type { ReactNode } from 'react'
+ import { redirect } from 'next/navigation'
+-import Link from 'next/link'
+ import { createServerComponentClient } from '@/lib/supabase-server-component'
++import { SidebarNav } from '@/components/dashboard/SidebarNav'
  
- generated: 2026-05-31
--last_updated: 2026-06-05 (story-2.5-done)
-+last_updated: 2026-06-05 (story-3.1-review)
- project: VisaAgency
- project_key: NOKEY
- tracking_system: file-system
-@@ -66,8 +66,8 @@ development_status:
-   # ─────────────────────────────────────────────
-   # Epic 3: Operator Monitors & Manages Applications
-   # ─────────────────────────────────────────────
--  epic-3: backlog
--  3-1-operator-authentication-and-route-protection: backlog
-+  epic-3: in-progress
-+  3-1-operator-authentication-and-route-protection: review
-   3-2-dashboard-layout-and-sidebar-navigation: backlog
-   3-3-applications-list-with-filter-tabs-and-search: backlog
-   3-4-application-detail-view-with-signed-url-images: backlog
-diff --git a/apps/web/src/app/dashboard/layout.tsx b/apps/web/src/app/dashboard/layout.tsx
+ export default async function DashboardLayout({ children }: { children: ReactNode }) {
+   const supabase = await createServerComponentClient()
+@@ -15,20;7,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
+ 
+   return (
+     <div className="flex h-screen overflow-hidden">
+-      {/* Sidebar placeholder — will be replaced in Story 3.2 */}
+-      <aside className="w-60 shrink-0 bg-primary text-white flex flex-col">
+-        <div className="px-4 py-5 border-b border-white/10">
+-          <span className="text-sm font-semibold">David Agency</span>
+-        </div>
+-        <nav className="flex-1 px-2 py-3">
+-          <Link
+-            href="/dashboard"
+-            className="flex items-center px-3 py-2 text-sm font-medium rounded text-white bg-white/15"
+-          >
+-            Applications
+-          </Link>
+-        </nav>
+-      </aside>
++      <SidebarNav />
+ 
+       {/* Main content */}
+       <main className="flex-1 p-6 overflow-auto bg-background">
+diff --git a/apps/web/src/app/dashboard/(protected)/page.tsx b/apps/web/src/app/dashboard/(protected)/page.tsx
 new file mode 100644
-index 0000000..9f92667
+index 0000000..71a5690
 --- /dev/null
-+++ b/apps/web/src/app/dashboard/layout.tsx
-@@ -0,0 +1,38 @@
-+import type { ReactNode } from 'react'
-+import { redirect } from 'next/navigation'
-+import { createServerComponentClient } from '@/lib/supabase-server-component'
-+
-+export default async function DashboardLayout({ children }: { children: ReactNode }) {
-+  const supabase = await createServerComponentClient()
-+  const {
-+    data: { session },
-+  } = await supabase.auth.getSession()
-+
-+  if (!session) {
-+    redirect('/dashboard/login')
-+  }
-+
-+  return (
-+    <div className="flex h-screen overflow-hidden">
-+      {/* Sidebar placeholder — will be replaced in Story 3.2 */}
-+      <aside className="w-60 shrink-0 bg-primary text-white flex flex-col">
-+        <div className="px-4 py-5 border-b border-white/10">
-+          <span className="text-sm font-semibold">David Agency</span>
-+        </div>
-+        <nav className="flex-1 px-2 py-3">
-+          <a
-+            href="/dashboard"
-+            className="flex items-center px-3 py-2 text-sm font-medium rounded text-white bg-white/15"
-+          >
-+            Applications
-+          </a>
-+        </nav>
-+      </aside>
-+
-+      {/* Main content */}
-+      <main className="flex-1 p-6 overflow-auto bg-background">
-+        {children}
-+      </main>
-+    </div>
-+  )
-+}
-diff --git a/apps/web/src/app/dashboard/login/page.tsx b/apps/web/src/app/dashboard/login/page.tsx
-new file mode 100644
-index 0000000..09f1b6f
---- /dev/null
-+++ b/apps/web/src/app/dashboard/login/page.tsx
-@@ -0,0 +1,96 @@
++++ b/apps/web/src/app/dashboard/(protected)/page.tsx
+@@ -0,0 +1,79 @@
 +'use client'
 +
-+import { useState } from 'react'
-+import { useRouter } from 'next/navigation'
-+import { createClient } from '@/lib/supabase-client'
-+import { Button } from '@/components/ui/button'
-+import { Input } from '@/components/ui/input'
-+import { Label } from '@/components/ui/label'
-+import { LoaderCircle } from 'lucide-react'
++import { useState, useMemo } from 'react'
++import { ApplicationFilters, type TabType } from '@/components/dashboard/ApplicationFilters'
++import { ApplicationTable } from '@/components/dashboard/ApplicationTable'
++import { useApplications } from '@/hooks/use-applications'
++import type { ApplicationData } from '@david-agency/shared'
 +
-+export default function LoginPage() {
-+  const router = useRouter()
-+  const [email, setEmail] = useState('')
-+  const [password, setPassword] = useState('')
-+  const [error, setError] = useState<string | null>(null)
-+  const [isLoading, setIsLoading] = useState(false)
++export default function DashboardPage() {
++  const [activeTab, setActiveTab] = useState<TabType>('raw')
++  const [searchQuery, setSearchQuery] = useState('')
++  
++  const { data: applications = [], isLoading } = useApplications()
 +
-+  const handleSubmit = async (e: React.FormEvent) => {
-+    e.preventDefault()
-+    setError(null)
-+    setIsLoading(true)
-+
-+    const supabase = createClient()
-+    const { error: authError } = await supabase.auth.signInWithPassword({
-+      email,
-+      password,
-+    })
-+
-+    if (authError) {
-+      setError('Invalid email or password.')
-+      setPassword('') // AC-6: password field cleared on failure
-+      setIsLoading(false)
-+      return
++  const counts = useMemo(() => {
++    const defaultCounts: Record<TabType, number> = {
++      all: 0,
++      raw: 0,
++      ready: 0,
++      submitted: 0,
++      done: 0,
 +    }
++    
++    applications.forEach((app: ApplicationData) => {
++      defaultCounts.all++
++      if (app.status in defaultCounts) {
++        defaultCounts[app.status as TabType]++
++      }
++    })
++    
++    return defaultCounts
++  }, [applications])
 +
-+    // AC-4: redirect to /dashboard on success
-+    router.push('/dashboard')
-+    router.refresh() // force middleware to re-verify session
-+  }
++  const filteredApplications = useMemo(() => {
++    return applications.filter((app: ApplicationData) => {
++      // Tab filter
++      if (activeTab !== 'all' && app.status !== activeTab) {
++        return false
++      }
++      
++      // Search filter
++      if (searchQuery.trim()) {
++        const query = searchQuery.toLowerCase()
++        const fullName = `${app.firstName} ${app.lastName}`.toLowerCase()
++        const idMatch = app.appId.toLowerCase().includes(query)
++        const nameMatch = fullName.includes(query)
++        
++        if (!idMatch && !nameMatch) {
++          return false
++        }
++      }
++      
++      return true
++    })
++  }, [applications, activeTab, searchQuery])
 +
 +  return (
-+    <div className="min-h-screen bg-muted flex items-center justify-center px-4">
-+      <div className="w-full max-w-sm bg-white rounded-lg shadow-md p-8">
-+        {/* Header */}
-+        <div className="mb-6 text-center">
-+          <h1 className="text-2xl font-bold text-primary">David Agency</h1>
-+          <p className="text-sm text-muted-foreground mt-1">Operator Sign In</p>
-+        </div>
-+
-+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-+          <div className="flex flex-col gap-1.5">
-+            <Label htmlFor="email">Email</Label>
-+            <Input
-+              id="email"
-+              type="email"
-+              autoComplete="email"
-+              value={email}
-+              onChange={(e) => setEmail(e.target.value)}
-+              required
-+            />
-+          </div>
-+
-+          <div className="flex flex-col gap-1.5">
-+            <Label htmlFor="password">Password</Label>
-+            <Input
-+              id="password"
-+              type="password"
-+              autoComplete="current-password"
-+              value={password}
-+              onChange={(e) => setPassword(e.target.value)}
-+              required
-+            />
-+          </div>
-+
-+          {/* AC-6: inline error message */}
-+          {error && (
-+            <p role="alert" className="text-sm text-destructive">
-+              {error}
-+            </p>
-+          )}
-+
-+          <Button type="submit" className="w-full mt-2" disabled={isLoading}>
-+            {isLoading ? (
-+              <>
-+                <LoaderCircle className="mr-2 h-4 w-4 animate-spin" />
-+                Signing in…
-+              </>
-+            ) : (
-+              'Sign In'
-+            )}
-+          </Button>
-+        </form>
++    <div className="space-y-6">
++      <div>
++        <h1 className="text-2xl font-semibold text-foreground mb-1">Applications</h1>
++        <p className="text-sm text-muted-foreground">Manage and track visa applications.</p>
 +      </div>
++      
++      <ApplicationFilters
++        activeTab={activeTab}
++        setActiveTab={setActiveTab}
++        searchQuery={searchQuery}
++        setSearchQuery={setSearchQuery}
++        counts={counts}
++      />
++      
++      <ApplicationTable
++        applications={filteredApplications}
++        isLoading={isLoading}
++        activeTab={activeTab}
++      />
 +    </div>
 +  )
 +}
 diff --git a/apps/web/src/app/dashboard/page.tsx b/apps/web/src/app/dashboard/page.tsx
+deleted file mode 100644
+index 9618b45..0000000
+--- a/apps/web/src/app/dashboard/page.tsx
++++ /dev/null
+@@ -1,8 +0,0 @@
+-export default function DashboardPage() {
+-  return (
+-    <div>
+-      <h1 className="text-2xl font-bold text-foreground mb-2">Applications</h1>
+-      <p className="text-muted-foreground">Application list will be built in Story 3.3.</p>
+-    </div>
+-  )
+-}
+diff --git a/apps/web/src/app/layout.tsx b/apps/web/src/app/layout.tsx
+index d97cb5a..b671232 100644
+--- a/apps/web/src/app/layout.tsx
++++ b/apps/web/src/app/layout.tsx
+@@ -4,6 +4,8 @@ import { Geist, Geist_Mono } from "next/font/google";
+ import { Toaster } from "@/components/ui/sonner";
+ import "./globals.css";
+ import RecaptchaProvider from "@/components/providers/RecaptchaProvider";
++import { Providers } from "./providers";
++
+ const geistSans = Geist({
+   variable: "--font-geist-sans",
+   subsets: ["latin"],
+@@ -30,10 +32,12 @@ export default function RootLayout({
+       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+     >
+       <body className="min-h-full flex flex-col">
+-        <RecaptchaProvider>
+-          {children}
+-          <Toaster position="bottom-center" />
+-        </RecaptchaProvider>
++        <Providers>
++          <RecaptchaProvider>
++            {children}
++            <Toaster position="bottom-center" />
++          </RecaptchaProvider>
++        </Providers>
+       </body>
+     </html>
+   );
+diff --git a/apps/web/src/app/providers.tsx b/apps/web/src/app/providers.tsx
 new file mode 100644
-index 0000000..9618b45
+index 0000000..207e9fe
 --- /dev/null
-+++ b/apps/web/src/app/dashboard/page.tsx
-@@ -0,0 +1,8 @@
-+export default function DashboardPage() {
++++ b/apps/web/src/app/providers.tsx
+@@ -0,0 +1,20 @@
++'use client'
++
++import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
++import { useState } from 'react'
++
++export function Providers({ children }: { children: React.ReactNode }) {
++  const [queryClient] = useState(() => new QueryClient({
++    defaultOptions: {
++      queries: {
++        staleTime: 60 * 1000, // 1 minute
++      },
++    },
++  }))
++
 +  return (
-+    <div>
-+      <h1 className="text-2xl font-bold text-foreground mb-2">Applications</h1>
-+      <p className="text-muted-foreground">Application list will be built in Story 3.3.</p>
++    <QueryClientProvider client={queryClient}>
++      {children}
++    </QueryClientProvider>
++  )
++}
+diff --git a/apps/web/src/components/dashboard/ApplicationFilters.tsx b/apps/web/src/components/dashboard/ApplicationFilters.tsx
+new file mode 100644
+index 0000000..e5f6bd0
+--- /dev/null
++++ b/apps/web/src/components/dashboard/ApplicationFilters.tsx
+@@ -0,0 +1,66 @@
++import { Input } from "@/components/ui/input"
++import { Search } from "lucide-react"
++
++export type TabType = "all" | "raw" | "ready" | "submitted" | "done"
++
++interface ApplicationFiltersProps {
++  activeTab: TabType;
++  setActiveTab: (tab: TabType) => void;
++  searchQuery: string;
++  setSearchQuery: (query: string) => void;
++  counts: Record<TabType, number>;
++}
++
++const TABS: { id: TabType; label: string }[] = [
++  { id: "raw", label: "Raw" },
++  { id: "all", label: "All" },
++  { id: "ready", label: "Ready" },
++  { id: "submitted", label: "Submitted" },
++  { id: "done", label: "Done" },
++]
++
++export function ApplicationFilters({
++  activeTab,
++  setActiveTab,
++  searchQuery,
++  setSearchQuery,
++  counts,
++}: ApplicationFiltersProps) {
++  return (
++    <div className="space-y-4">
++      {/* Tabs */}
++      <div className="flex items-center gap-6 border-b border-border">
++        {TABS.map((tab) => (
++          <button
++            key={tab.id}
++            onClick={() => setActiveTab(tab.id)}
++            className={`flex items-center gap-2 pb-3 pt-2 text-sm font-medium transition-colors ${
++              activeTab === tab.id
++                ? "border-b-2 border-accent text-foreground"
++                : "text-muted-foreground hover:text-foreground"
++            }`}
++          >
++            {tab.label}
++            {counts[tab.id] > 0 && (
++              <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
++                {counts[tab.id]}
++              </span>
++            )}
++          </button>
++        ))}
++      </div>
++
++      {/* Search */}
++      <div className="relative max-w-sm">
++        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
++        <Input
++          type="search"
++          placeholder="Search by name or ID..."
++          className="pl-8"
++          value={searchQuery}
++          onChange={(e) => setSearchQuery(e.target.value)}
++        />
++      </div>
 +    </div>
 +  )
 +}
-diff --git a/apps/web/src/lib/supabase-middleware.ts b/apps/web/src/lib/supabase-middleware.ts
+diff --git a/apps/web/src/components/dashboard/ApplicationTable.tsx b/apps/web/src/components/dashboard/ApplicationTable.tsx
 new file mode 100644
-index 0000000..cd3ef97
+index 0000000..0bf6cc7
 --- /dev/null
-+++ b/apps/web/src/lib/supabase-middleware.ts
-@@ -0,0 +1,25 @@
-+import { createServerClient } from '@supabase/ssr'
-+import type { NextRequest, NextResponse } from 'next/server'
-+import type { Database } from '@/types/supabase'
++++ b/apps/web/src/components/dashboard/ApplicationTable.tsx
+@@ -0,0 +1,118 @@
++import {
++  Table,
++  TableBody,
++  TableCell,
++  TableHead,
++  TableHeader,
++  TableRow,
++} from "@/components/ui/table"
++import { Skeleton } from "@/components/ui/skeleton"
++import { useRouter } from "next/navigation"
++import { StatusBadge } from "./StatusBadge"
++import type { ApplicationData } from "@david-agency/shared"
 +
-+export function createMiddlewareClient(request: NextRequest, response: NextResponse) {
-+  return createServerClient<Database>(
-+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-+    {
-+      cookies: {
-+        getAll() {
-+          return request.cookies.getAll()
-+        },
-+        setAll(cookiesToSet) {
-+          cookiesToSet.forEach(({ name, value }) =>
-+            request.cookies.set(name, value)
-+          )
-+          cookiesToSet.forEach(({ name, value, options }) =>
-+            response.cookies.set(name, value, options)
-+          )
-+        },
-+      },
-+    }
-+  )
++interface ApplicationTableProps {
++  applications: ApplicationData[];
++  isLoading: boolean;
++  activeTab: string;
 +}
-diff --git a/apps/web/src/lib/supabase-server-component.ts b/apps/web/src/lib/supabase-server-component.ts
-new file mode 100644
-index 0000000..d20b2e5
---- /dev/null
-+++ b/apps/web/src/lib/supabase-server-component.ts
-@@ -0,0 +1,28 @@
-+import { createServerClient } from '@supabase/ssr'
-+import { cookies } from 'next/headers'
-+import type { Database } from '@/types/supabase'
 +
-+export async function createServerComponentClient() {
-+  const cookieStore = await cookies()
-+  return createServerClient<Database>(
-+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-+    {
-+      cookies: {
-+        getAll() {
-+          return cookieStore.getAll()
-+        },
-+        setAll(cookiesToSet) {
-+          try {
-+            cookiesToSet.forEach(({ name, value, options }) =>
-+              cookieStore.set(name, value, options)
-+            )
-+          } catch {
-+            // Server Components cannot set cookies — ignore silently
-+            // (middleware handles token renewal)
-+          }
-+        },
-+      },
-+    }
-+  )
-+}
-diff --git a/apps/web/src/middleware.ts b/apps/web/src/middleware.ts
-new file mode 100644
-index 0000000..fce1423
---- /dev/null
-+++ b/apps/web/src/middleware.ts
-@@ -0,0 +1,34 @@
-+import { NextRequest, NextResponse } from 'next/server'
-+import { createMiddlewareClient } from '@/lib/supabase-middleware'
++export function ApplicationTable({
++  applications,
++  isLoading,
++  activeTab,
++}: ApplicationTableProps) {
++  const router = useRouter()
 +
-+export async function middleware(request: NextRequest) {
-+  const response = NextResponse.next({ request })
-+  const supabase = createMiddlewareClient(request, response)
-+
-+  // Refresh session — CRITICAL: must be called before any auth check
-+  const {
-+    data: { session },
-+  } = await supabase.auth.getSession()
-+
-+  const { pathname } = request.nextUrl
-+
-+  // Protect all /dashboard/* routes except /dashboard/login
-+  if (pathname.startsWith('/dashboard') && pathname !== '/dashboard/login') {
-+    if (!session) {
-+      const loginUrl = new URL('/dashboard/login', request.url)
-+      return NextResponse.redirect(loginUrl)
-+    }
++  if (isLoading) {
++    return (
++      <div className="rounded-md border border-border bg-white">
++        <Table>
++          <TableHeader>
++            <TableRow>
++              <TableHead>Application ID</TableHead>
++              <TableHead>Applicant Name</TableHead>
++              <TableHead>Arrival Date</TableHead>
++              <TableHead>Status</TableHead>
++              <TableHead>Submitted At</TableHead>
++            </TableRow>
++          </TableHeader>
++          <TableBody>
++            {Array.from({ length: 5 }).map((_, i) => (
++              <TableRow key={i}>
++                <TableCell><Skeleton className="h-4 w-24" /></TableCell>
++                <TableCell><Skeleton className="h-4 w-32" /></TableCell>
++                <TableCell><Skeleton className="h-4 w-20" /></TableCell>
++                <TableCell><Skeleton className="h-6 w-16 rounded-full" /></TableCell>
++                <TableCell><Skeleton className="h-4 w-24" /></TableCell>
++              </TableRow>
++            ))}
++          </TableBody>
++        </Table>
++      </div>
++    )
 +  }
 +
-+  // If already authenticated and trying to access /dashboard/login → redirect to /dashboard
-+  if (pathname === '/dashboard/login' && session) {
-+    const dashboardUrl = new URL('/dashboard', request.url)
-+    return NextResponse.redirect(dashboardUrl)
++  if (applications.length === 0) {
++    const statusText = activeTab === 'all' ? '' : activeTab
++    return (
++      <div className="flex flex-col items-center justify-center rounded-md border border-border border-dashed py-16 text-center">
++        <h3 className="text-lg font-medium text-foreground">
++          {activeTab === 'all' ? "No applications yet." : `No ${statusText} applications.`}
++        </h3>
++        <p className="mt-1 text-sm text-muted-foreground">
++          Applications will appear here once they reach {activeTab === 'all' ? 'the system' : `${statusText} status`}.
++        </p>
++      </div>
++    )
 +  }
 +
-+  return response
++  return (
++    <div className="rounded-md border border-border bg-white">
++      <Table>
++        <TableHeader>
++          <TableRow>
++            <TableHead>Application ID</TableHead>
++            <TableHead>Applicant Name</TableHead>
++            <TableHead>Arrival Date</TableHead>
++            <TableHead>Status</TableHead>
++            <TableHead>Submitted At</TableHead>
++          </TableRow>
++        </TableHeader>
++        <TableBody>
++          {applications.map((app) => (
++            <TableRow
++              key={app.id}
++              className="cursor-pointer hover:bg-muted"
++              onClick={() => router.push(`/dashboard/applications/${app.id}`)}
++            >
++              <TableCell className="font-mono text-xs text-muted-foreground">{app.appId}</TableCell>
++              <TableCell className="font-medium">
++                {app.lastName} {app.firstName}
++              </TableCell>
++              <TableCell>
++                {new Intl.DateTimeFormat('en-US', {
++                  month: 'short',
++                  day: 'numeric',
++                  year: 'numeric'
++                }).format(new Date(app.arrivalDate))}
++              </TableCell>
++              <TableCell>
++                <StatusBadge status={app.status} />
++              </TableCell>
++              <TableCell className="text-muted-foreground text-sm">
++                {new Intl.DateTimeFormat('en-US', {
++                  month: 'short',
++                  day: 'numeric',
++                  year: 'numeric',
++                  hour: 'numeric',
++                  minute: '2-digit'
++                }).format(new Date(app.createdAt))}
++              </TableCell>
++            </TableRow>
++          ))}
++        </TableBody>
++      </Table>
++    </div>
++  )
++}
+diff --git a/apps/web/src/components/dashboard/SidebarNav.tsx b/apps/web/src/components/dashboard/SidebarNav.tsx
+new file mode 100644
+index 0000000..dd06b08
+--- /dev/null
++++ b/apps/web/src/components/dashboard/SidebarNav.tsx
+@@ -0,0 +1,72 @@
++'use client'
++
++import Link from 'next/link'
++import { usePathname, useRouter } from 'next/navigation'
++import { LayoutDashboard, LogOut } from 'lucide-react'
++import { createClient } from '@/lib/supabase-client'
++
++const navItems = [
++  {
++    label: 'Applications',
++    href: '/dashboard',
++    icon: LayoutDashboard,
++  },
++]
++
++export function SidebarNav() {
++  const pathname = usePathname()
++  const router = useRouter()
++
++  const handleLogout = async () => {
++    const supabase = createClient()
++    await supabase.auth.signOut()
++    router.push('/dashboard/login')
++    router.refresh()
++  }
++
++  return (
++    <aside className="w-60 shrink-0 bg-primary text-white flex flex-col h-screen">
++      {/* Logo area — px-4 py-5 border-b border-white/10 per UX-DR3 */}
++      <div className="px-4 py-5 border-b border-white/10">
++        <span className="text-sm font-semibold">David Agency</span>
++      </div>
++
++      {/* Nav items */}
++      <nav className="flex-1 px-2 py-3 space-y-1">
++        {navItems.map((item) => {
++          // Active when exact match or when on a sub-route (e.g. /dashboard/applications/[id])
++          const isActive =
++            pathname === item.href ||
++            (item.href !== '/dashboard' && pathname.startsWith(item.href + '/'))
++          const Icon = item.icon
++          return (
++            <Link
++              key={item.href}
++              href={item.href}
++              className={[
++                'flex items-center gap-2 px-3 py-2 text-sm font-medium rounded transition-colors',
++                isActive
++                  ? 'bg-white/15 text-white'
++                  : 'text-white/80 hover:bg-white/10 hover:text-white',
++              ].join(' ')}
++            >
++              <Icon className="h-4 w-4" />
++              {item.label}
++            </Link>
++          )
++        })}
++      </nav>
++
++      {/* Logout button at bottom */}
++      <div className="px-2 pb-4 border-t border-white/10 pt-3">
++        <button
++          onClick={handleLogout}
++          className="flex items-center gap-2 w-full px-3 py-2 text-sm font-medium rounded text-white/80 hover:bg-white/10 hover:text-white transition-colors"
++        >
++          <LogOut className="h-4 w-4" />
++          Sign Out
++        </button>
++      </div>
++    </aside>
++  )
++}
+diff --git a/apps/web/src/components/dashboard/StatusBadge.tsx b/apps/web/src/components/dashboard/StatusBadge.tsx
+new file mode 100644
+index 0000000..255232b
+--- /dev/null
++++ b/apps/web/src/components/dashboard/StatusBadge.tsx
+@@ -0,0 +1,23 @@
++import type { ApplicationStatus } from '@david-agency/shared'
++
++const variants = {
++  raw: 'bg-[#F1F5F9] text-[#64748B] border-[#E2E8F0]',
++  ready: 'bg-[#FEF3C7] text-[#92400E] border-[#FDE68A]',
++  submitted: 'bg-[#DBEAFE] text-[#1E40AF] border-[#BFDBFE]',
++  done: 'bg-[#DCFCE7] text-[#166534] border-[#BBF7D0]',
 +}
 +
-+export const config = {
-+  matcher: ['/dashboard/:path*'],
++const labels = {
++  raw: 'Raw',
++  ready: 'Ready',
++  submitted: 'Submitted',
++  done: 'Done',
 +}
-
++
++export function StatusBadge({ status }: { status: ApplicationStatus }) {
++  return (
++    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium border ${variants[status]}`}>
++      {labels[status]}
++    </span>
++  )
++}
+diff --git a/apps/web/src/hooks/use-applications.ts b/apps/web/src/hooks/use-applications.ts
+new file mode 100644
+index 0000000..101d784
+--- /dev/null
++++ b/apps/web/src/hooks/use-applications.ts
+@@ -0,0 +1,32 @@
++import { useQuery } from '@tanstack/react-query'
++import { createClient } from '@/lib/supabase-client'
++import type { ApplicationData } from '@david-agency/shared'
++
++export function useApplications() {
++  return useQuery({
++    queryKey: ['applications'],
++    queryFn: async () => {
++      const supabase = createClient()
++      const { data, error } = await supabase
++        .from('applications')
++        .select('*')
++        .order('created_at', { ascending: false })
++
++      if (error) throw error
++
++      return data.map((item) => ({
++        id: item.id,
++        appId: item.app_id,
++        lastName: item.last_name,
++        firstName: item.first_name,
++        email: item.email,
++        arrivalDate: item.arrival_date,
++        status: item.status,
++        portraitPath: item.portrait_path,
++        passportPath: item.passport_path,
++        createdAt: item.created_at,
++        updatedAt: item.updated_at,
++      })) as ApplicationData[]
++    }
++  })
++}
 ```
