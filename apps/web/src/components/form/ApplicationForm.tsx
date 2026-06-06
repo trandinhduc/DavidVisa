@@ -90,7 +90,7 @@ export default function ApplicationForm() {
       let result
       try {
         result = await response.json()
-      } catch (e) {
+      } catch {
         throw new Error('Submission failed due to a network error. Please try again.')
       }
 

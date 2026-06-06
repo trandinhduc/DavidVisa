@@ -109,6 +109,51 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
     }
   }
 
+  const handleMarkAsSubmitted = async () => {
+    // Optimistic update
+    const previousData = queryClient.getQueryData<ApplicationData>([
+      'applications',
+      application.id,
+    ])
+
+    queryClient.setQueryData<ApplicationData>(['applications', application.id], (old: ApplicationData | undefined) => {
+      if (!old) return old
+      return { ...old, status: 'submitted' }
+    })
+
+    try {
+      const res = await fetch(`/api/applications/${application.id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'submitted' }),
+      })
+
+      const json = await res.json()
+
+      if (!res.ok || json.error) {
+        throw new Error(json.error?.message ?? 'Failed to update status')
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['applications'] })
+
+      // Clear the extension's pending application
+      try {
+        if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+          chrome.runtime.sendMessage(EXTENSION_ID, { type: 'CLEAR_PENDING_APPLICATION' })
+        }
+      } catch (err) {
+        console.error('Failed to send clear message to extension:', err)
+      }
+
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Unknown error occurred')
+      queryClient.setQueryData(['applications', application.id], previousData)
+      toast.error(error.message || 'Failed to update status — please try again.', {
+        duration: Infinity,
+      })
+    }
+  }
+
   return (
     <div className="space-y-8">
       {/* Header — Full Name + App ID + Status + action buttons */}
@@ -178,6 +223,19 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
               )}
             </Tooltip>
           </TooltipProvider>
+
+          {/* AC-7 (story 4.4): Mark as Submitted button */}
+          {showPushToEvisa && (
+            <Button
+              id="mark-as-submitted-btn"
+              variant="outline"
+              size="sm"
+              onClick={handleMarkAsSubmitted}
+              className="flex items-center gap-1.5"
+            >
+              Mark as Submitted
+            </Button>
+          )}
         </div>
       </div>
 

@@ -1,10 +1,10 @@
 import { Storage } from "@plasmohq/storage"
-import type { PushToEvisaMessage } from "@david-agency/shared"
+import type { ExtensionMessage } from "@david-agency/shared"
 
 const storage = new Storage()
 
 chrome.runtime.onMessageExternal.addListener(
-  (message: PushToEvisaMessage, sender, sendResponse) => {
+  (message: ExtensionMessage, sender, sendResponse) => {
     // Determine allowed origin based on environment
     const allowedOrigin =
       process.env.NODE_ENV === "development"
@@ -26,7 +26,38 @@ chrome.runtime.onMessageExternal.addListener(
       return true // Keep the message channel open for the async response
     }
 
+    if (message.type === "CLEAR_PENDING_APPLICATION") {
+      storage.remove("pendingApplication")
+        .then(() => sendResponse({ success: true }))
+        .catch((error) => {
+          console.error("Failed to clear pending application", error)
+          sendResponse({ success: false, error: String(error) })
+        })
+      return true
+    }
+
     sendResponse({ success: false, error: "Unknown message type" })
     return false // Response sent synchronously
   }
 )
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === "FETCH_IMAGE") {
+    fetch(message.url)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        return res.blob()
+      })
+      .then((blob) => {
+        const reader = new FileReader()
+        reader.onloadend = () => sendResponse({ success: true, dataUrl: reader.result })
+        reader.onerror = () => sendResponse({ success: false, error: "Failed to read blob" })
+        reader.readAsDataURL(blob)
+      })
+      .catch((error) => {
+        console.error("Failed to proxy fetch image:", error)
+        sendResponse({ success: false, error: String(error) })
+      })
+    return true // Keep channel open for async response
+  }
+})

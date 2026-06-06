@@ -26,3 +26,9 @@ export interface PushToEvisaMessage {
   portraitSignedUrl: string | null
   passportSignedUrl: string | null
 }
+
+export interface ClearPendingApplicationMessage {
+  type: 'CLEAR_PENDING_APPLICATION'
+}
+
+export type ExtensionMessage = PushToEvisaMessage | ClearPendingApplicationMessage

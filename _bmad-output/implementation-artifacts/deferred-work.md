@@ -58,3 +58,6 @@
 ## Deferred from: code review of story-4.1 (2026-06-05)
 - State update warning on unmounted component — When the dialog is closed optimistically before the API request completes, the finally block inside `CreateDataModal.tsx` attempts to set `isConfirming(false)` on an unmounted component, potentially triggering a React warning. [apps/web/src/components/dashboard/CreateDataModal.tsx:43]
 
+
+## Deferred from: code review of story-4.4 (2026-06-06)
+- Popup Selector Brittle Parsing [`apps/extension/contents/evisa-filler.ts`:66] — deferred, pre-existing

@@ -2,49 +2,166 @@ Review this diff using the bmad-review-adversarial-general skill.
 Focus only on the diff provided below. No project context is provided.
 
 ```diff
+diff --git a/apps/extension/background.ts b/apps/extension/background.ts
+index 3d425a2..5c830df 100644
+--- a/apps/extension/background.ts
++++ b/apps/extension/background.ts
+@@ -1,10 +1,10 @@
+ import { Storage } from "@plasmohq/storage"
+-import type { PushToEvisaMessage } from "@david-agency/shared"
++import type { ExtensionMessage } from "@david-agency/shared"
+ 
+ const storage = new Storage()
+ 
+ chrome.runtime.onMessageExternal.addListener(
+-  (message: PushToEvisaMessage, sender, sendResponse) => {
++  (message: ExtensionMessage, sender, sendResponse) => {
+     // Determine allowed origin based on environment
+     const allowedOrigin =
+       process.env.NODE_ENV === "development"
+@@ -26,6 +26,16 @@ chrome.runtime.onMessageExternal.addListener(
+       return true // Keep the message channel open for the async response
+     }
+ 
++    if (message.type === "CLEAR_PENDING_APPLICATION") {
++      storage.remove("pendingApplication")
++        .then(() => sendResponse({ success: true }))
++        .catch((error) => {
++          console.error("Failed to clear pending application", error)
++          sendResponse({ success: false, error: String(error) })
++        })
++      return true
++    }
++
+     sendResponse({ success: false, error: "Unknown message type" })
+     return false // Response sent synchronously
+   }
+diff --git a/apps/extension/contents/evisa-filler.ts b/apps/extension/contents/evisa-filler.ts
+new file mode 100644
+index 0000000..328dbdf
+--- /dev/null
++++ b/apps/extension/contents/evisa-filler.ts
+@@ -0,0 +1,110 @@
++import type { PlasmoCSConfig } from "plasmo"
++import { Storage } from "@plasmohq/storage"
++import type { PushToEvisaMessage } from "@david-agency/shared"
++
++export const config: PlasmoCSConfig = {
++  matches: ["https://evisa.xuatnhapcanh.gov.vn/*", "https://*.evisa.gov.vn/*", "https://evisa.gov.vn/*"]
++}
++
++const storage = new Storage()
++
++// Function to close popup if it exists
++function handleBlockingPopup() {
++  // Common selectors for close buttons or confirmation buttons on ads/notices
++  const closeSelectors = [
++    '.btn-close', '.modal-close', '[aria-label="Close"]', '#btnClose', '.close-popup',
++    'button:contains("Đóng")', 'button:contains("Close")'
++  ]
++  
++  for (const selector of closeSelectors) {
++    try {
++      // Use standard querySelector, ignoring custom pseudo-classes like :contains for safety
++      const btns = document.querySelectorAll(selector.split(':')[0])
++      for (let i = 0; i < btns.length; i++) {
++        const btn = btns[i] as HTMLElement
++        if (btn && btn.offsetParent !== null) { // visible
++          if (selector.includes('contains')) {
++            const text = selector.match(/contains\("(.*)"\)/)?.[1]
++            if (text && !btn.textContent?.includes(text)) continue
++          }
++          btn.click()
++          console.log('Closed blocking popup using selector:', selector)
++          return
++        }
++      }
++    } catch (e) {
++      // ignore invalid selectors
++    }
++  }
++}
++
++// Helper to fill text inputs
++function fillInput(selector: string, value: string) {
++  const el = document.querySelector(selector) as HTMLInputElement
++  if (el) {
++    el.value = value
++    el.dispatchEvent(new Event('input', { bubbles: true }))
++    el.dispatchEvent(new Event('change', { bubbles: true }))
++    el.dispatchEvent(new Event('blur', { bubbles: true }))
++  }
++}
++
++async function handlePhotoUpload(url: string, selector: string) {
++  try {
++    const response = await fetch(url)
++    const blob = await response.blob()
++    const file = new File([blob], "upload.jpg", { type: blob.type || "image/jpeg" })
++    
++    const dataTransfer = new DataTransfer()
++    dataTransfer.items.add(file)
++    
++    const input = document.querySelector(selector) as HTMLInputElement
++    if (input) {
++      input.files = dataTransfer.files
++      input.dispatchEvent(new Event('change', { bubbles: true }))
++    } else {
++      console.warn("File input not found for selector:", selector)
++    }
++  } catch (err) {
++    console.error("Failed to upload photo from url:", url, err)
++  }
++}
++
++async function fillForm() {
++  // Periodically check for popups and close them
++  const popupInterval = setInterval(handleBlockingPopup, 1000)
++
++  try {
++    const pendingApp = await storage.get<PushToEvisaMessage>("pendingApplication")
++    if (!pendingApp) return
++
++    console.log("Found pending application, starting auto-fill...", pendingApp)
++
++    // Basic heuristic selectors - adjust to match actual evisa.gov.vn DOM
++    fillInput('input[name="surname"], input[id*="surname" i], input[id*="lastname" i]', pendingApp.lastName)
++    fillInput('input[name="givenName"], input[id*="givenname" i], input[id*="firstname" i]', pendingApp.firstName)
++    fillInput('input[name="arrivalDate"], input[id*="arrivaldate" i]', pendingApp.arrivalDate)
++
++    // Handle Photos
++    if (pendingApp.portraitSignedUrl) {
++      await handlePhotoUpload(pendingApp.portraitSignedUrl, 'input[type="file"][id*="portrait" i], input[type="file"][name*="portrait" i]')
++    }
++    if (pendingApp.passportSignedUrl) {
++      await handlePhotoUpload(pendingApp.passportSignedUrl, 'input[type="file"][id*="passport" i], input[type="file"][name*="passport" i]')
++    }
++
++    // Stop and notify user
++    alert("Form filled — please review and submit.")
++    
++  } catch (error) {
++    console.error("Error auto-filling form:", error)
++  } finally {
++    // Clear interval after some time
++    setTimeout(() => clearInterval(popupInterval), 10000)
++  }
++}
++
++// Start execution
++window.addEventListener("load", () => {
++  setTimeout(fillForm, 1000) // slight delay to allow scripts to initialize
++})
 diff --git a/apps/web/src/components/dashboard/ApplicationDetail.tsx b/apps/web/src/components/dashboard/ApplicationDetail.tsx
-index 65d8d9c..9b6f374 100644
+index ded7264..ced7a27 100644
 --- a/apps/web/src/components/dashboard/ApplicationDetail.tsx
 +++ b/apps/web/src/components/dashboard/ApplicationDetail.tsx
-@@ -1,10 +1,13 @@
- 'use client'
+@@ -109,6 +109,51 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
+     }
+   }
  
- import { useState } from 'react'
--import { Pencil } from 'lucide-react'
-+import { Pencil, ChevronRight } from 'lucide-react'
-+import { useQueryClient } from '@tanstack/react-query'
-+import { toast } from 'sonner'
- import { StatusBadge } from './StatusBadge'
- import { ApplicationImages } from './ApplicationImages'
- import { EditModal } from './EditModal'
-+import { CreateDataModal } from './CreateDataModal'
- import { Button } from '@/components/ui/button'
- import type { ApplicationData } from '@david-agency/shared'
- 
-@@ -36,14 +39,67 @@ function formatArrivalDate(dateStr: string | null | undefined): string {
- }
- 
- export function ApplicationDetail({ application }: ApplicationDetailProps) {
-+  const queryClient = useQueryClient()
-   const [editOpen, setEditOpen] = useState(false)
-+  const [createDataOpen, setCreateDataOpen] = useState(false)
- 
--  // AC-1, AC-4: Edit button only visible when status is 'raw'
-+  // Status-based visibility flags
-+  // AC-3: Edit button only visible when status is 'raw'
-   const canEdit = application.status === 'raw'
-+  // AC-3 (story 4.1): "Create Data" button only visible when status is 'raw'
-+  const showCreateData = application.status === 'raw'
-+  // AC-6: "Push to eVisa" shown when status is 'ready'
-+  const showPushToEvisa = application.status === 'ready'
-+
-+  /**
-+   * Handles the Raw → Ready status transition.
-+   * AC-5: calls PUT /api/applications/[id]/status with { status: 'ready' }
-+   * Uses optimistic update — rolls back on failure (AC-8).
-+   */
-+  const handleCreateDataConfirm = async () => {
-+    // Optimistic update: immediately reflect Ready status in the cache
++  const handleMarkAsSubmitted = async () => {
++    // Optimistic update
 +    const previousData = queryClient.getQueryData<ApplicationData>([
 +      'applications',
 +      application.id,
@@ -52,17 +169,14 @@ index 65d8d9c..9b6f374 100644
 +
 +    queryClient.setQueryData<ApplicationData>(['applications', application.id], (old: ApplicationData | undefined) => {
 +      if (!old) return old
-+      return { ...old, status: 'ready' }
++      return { ...old, status: 'submitted' }
 +    })
-+
-+    // Close modal immediately (optimistic UX)
-+    setCreateDataOpen(false)
 +
 +    try {
 +      const res = await fetch(`/api/applications/${application.id}/status`, {
 +        method: 'PUT',
 +        headers: { 'Content-Type': 'application/json' },
-+        body: JSON.stringify({ status: 'ready' }),
++        body: JSON.stringify({ status: 'submitted' }),
 +      })
 +
 +      const json = await res.json()
@@ -71,191 +185,69 @@ index 65d8d9c..9b6f374 100644
 +        throw new Error(json.error?.message ?? 'Failed to update status')
 +      }
 +
-+      // Invalidate to ensure server state is consistent (AC-9: updated_at recorded)
-+      await queryClient.invalidateQueries({ queryKey: ['applications', application.id] })
-+    } catch {
-+      // AC-8: Roll back optimistic update on failure
-+      queryClient.setQueryData(['applications', application.id], previousData)
++      await queryClient.invalidateQueries({ queryKey: ['applications'] })
 +
-+      // AC-8: Persistent error toast
-+      toast.error('Failed to update status — please try again.', {
++      // Clear the extension's pending application
++      try {
++        if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
++          chrome.runtime.sendMessage(EXTENSION_ID, { type: 'CLEAR_PENDING_APPLICATION' })
++        }
++      } catch (err) {
++        console.error('Failed to send clear message to extension:', err)
++      }
++
++    } catch (err) {
++      const error = err instanceof Error ? err : new Error('Unknown error occurred')
++      queryClient.setQueryData(['applications', application.id], previousData)
++      toast.error(error.message || 'Failed to update status — please try again.', {
 +        duration: Infinity,
 +      })
 +    }
 +  }
- 
++
    return (
      <div className="space-y-8">
--      {/* Header — Full Name + App ID + Status + Edit button */}
-+      {/* Header — Full Name + App ID + Status + action buttons */}
-       <div className="flex items-start justify-between gap-4">
-         <div>
-           <h1 className="text-2xl font-semibold text-foreground">
-@@ -55,7 +111,8 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
-         </div>
-         <div className="flex items-center gap-3 shrink-0 pt-1">
-           <StatusBadge status={application.status} />
--          {/* AC-1: Edit button visible only when status is 'raw'; hidden for ready/submitted/done (AC-4) */}
+       {/* Header — Full Name + App ID + Status + action buttons */}
+@@ -178,6 +223,19 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
+               )}
+             </Tooltip>
+           </TooltipProvider>
 +
-+          {/* AC-1 (story 3.5): Edit button visible only when status is 'raw'; hidden for ready/submitted/done */}
-           {canEdit && (
-             <Button
-               id="edit-application-btn"
-@@ -68,6 +125,33 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
-               Edit
-             </Button>
-           )}
-+
-+          {/* AC-3 (story 4.1): "Create Data" button — only visible when status is 'raw' */}
-+          {showCreateData && (
-+            <Button
-+              id="create-data-btn"
-+              variant="default"
-+              size="sm"
-+              onClick={() => setCreateDataOpen(true)}
-+              className="flex items-center gap-1.5"
-+            >
-+              Create Data
-+            </Button>
-+          )}
-+
-+          {/* AC-6 (story 4.1): "Push to eVisa" button — shown when status is 'ready' (story 4.2 will wire this up) */}
++          {/* AC-7 (story 4.4): Mark as Submitted button */}
 +          {showPushToEvisa && (
 +            <Button
-+              id="push-to-evisa-btn"
-+              variant="default"
++              id="mark-as-submitted-btn"
++              variant="outline"
 +              size="sm"
++              onClick={handleMarkAsSubmitted}
 +              className="flex items-center gap-1.5"
-+              disabled
 +            >
-+              Push to eVisa
-+              <ChevronRight className="h-3.5 w-3.5" />
++              Mark as Submitted
 +            </Button>
 +          )}
          </div>
        </div>
  
-@@ -119,7 +203,7 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
-         <ApplicationImages applicationId={application.id} />
-       </div>
- 
--      {/* Edit Modal — AC-2: pre-filled with current application data; only mounted when status is 'raw' */}
-+      {/* Edit Modal — only mounted when status is 'raw' */}
-       {canEdit && (
-         <EditModal
-           application={application}
-@@ -127,6 +211,15 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
-           onOpenChange={setEditOpen}
-         />
-       )}
-+
-+      {/* Create Data Modal — only mounted when status is 'raw' (AC-7) */}
-+      {showCreateData && (
-+        <CreateDataModal
-+          open={createDataOpen}
-+          onOpenChange={setCreateDataOpen}
-+          onConfirm={handleCreateDataConfirm}
-+        />
-+      )}
-     </div>
-   )
+diff --git a/packages/shared/src/index.ts b/packages/shared/src/index.ts
+index 085abc6..3f7437f 100644
+--- a/packages/shared/src/index.ts
++++ b/packages/shared/src/index.ts
+@@ -1,2 +1,2 @@
+-export type { ApplicationData, ApplicationStatus, PushToEvisaMessage } from './types'
++export type { ApplicationData, ApplicationStatus, PushToEvisaMessage, ClearPendingApplicationMessage, ExtensionMessage } from './types'
+ export { STATUS_FLOW, EXTENSION_ID } from './constants'
+diff --git a/packages/shared/src/types.ts b/packages/shared/src/types.ts
+index 1d21e8d..3a007fb 100644
+--- a/packages/shared/src/types.ts
++++ b/packages/shared/src/types.ts
+@@ -26,3 +26,9 @@ export interface PushToEvisaMessage {
+   portraitSignedUrl: string | null
+   passportSignedUrl: string | null
  }
-diff --git a/apps/web/src/components/dashboard/CreateDataModal.tsx b/apps/web/src/components/dashboard/CreateDataModal.tsx
-new file mode 100644
-index 0000000..c921365
---- /dev/null
-+++ b/apps/web/src/components/dashboard/CreateDataModal.tsx
-@@ -0,0 +1,92 @@
-+'use client'
 +
-+import { useState } from 'react'
-+import { Loader2 } from 'lucide-react'
-+import {
-+  Dialog,
-+  DialogContent,
-+  DialogHeader,
-+  DialogTitle,
-+  DialogFooter,
-+  DialogDescription,
-+} from '@/components/ui/dialog'
-+import { Button } from '@/components/ui/button'
-+
-+interface CreateDataModalProps {
-+  open: boolean
-+  onOpenChange: (open: boolean) => void
-+  /** Called when operator clicks Confirm. Should trigger the status update. */
-+  onConfirm: () => Promise<void>
++export interface ClearPendingApplicationMessage {
++  type: 'CLEAR_PENDING_APPLICATION'
 +}
 +
-+/**
-+ * CreateDataModal — prompts the operator to confirm that application data is
-+ * ready for submission, triggering the Raw → Ready status transition.
-+ *
-+ * AC-4: shadcn Dialog with "Confirm application data is ready for submission?"
-+ *       prompt and a "Confirm" button.
-+ */
-+export function CreateDataModal({ open, onOpenChange, onConfirm }: CreateDataModalProps) {
-+  const [isConfirming, setIsConfirming] = useState(false)
-+
-+  const handleOpenChange = (isOpen: boolean) => {
-+    // Prevent closing mid-confirmation
-+    if (isConfirming) return
-+    onOpenChange(isOpen)
-+  }
-+
-+  const handleConfirm = async () => {
-+    setIsConfirming(true)
-+    try {
-+      await onConfirm()
-+      // onConfirm is responsible for closing the modal on success
-+    } finally {
-+      setIsConfirming(false)
-+    }
-+  }
-+
-+  return (
-+    <Dialog open={open} onOpenChange={handleOpenChange}>
-+      <DialogContent className="sm:max-w-sm">
-+        <DialogHeader>
-+          <DialogTitle>Create Data</DialogTitle>
-+          <DialogDescription>
-+            Confirm application data is ready for submission?
-+          </DialogDescription>
-+        </DialogHeader>
-+
-+        <p className="text-sm text-muted-foreground">
-+          This will transition the application status from{' '}
-+          <span className="font-medium text-foreground">Raw</span> to{' '}
-+          <span className="font-medium text-foreground">Ready</span>, enabling the Push to eVisa
-+          workflow.
-+        </p>
-+
-+        <DialogFooter className="gap-2 sm:gap-0">
-+          <Button
-+            id="create-data-cancel-btn"
-+            variant="ghost"
-+            onClick={() => onOpenChange(false)}
-+            disabled={isConfirming}
-+          >
-+            Cancel
-+          </Button>
-+          <Button
-+            id="create-data-confirm-btn"
-+            onClick={handleConfirm}
-+            disabled={isConfirming}
-+          >
-+            {isConfirming ? (
-+              <>
-+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-+                Confirming…
-+              </>
-+            ) : (
-+              'Confirm'
-+            )}
-+          </Button>
-+        </DialogFooter>
-+      </DialogContent>
-+    </Dialog>
-+  )
-+}
++export type ExtensionMessage = PushToEvisaMessage | ClearPendingApplicationMessage
 ```
