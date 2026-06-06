@@ -6,7 +6,7 @@ baseline_commit: 720eb54d46bd42b57af907de4f08b95c7f8b9f35
 
 **Story ID:** 3.5
 **Story Key:** 3-5-edit-application-and-one-way-status-tracking
-**Status:** ready-for-dev
+**Status:** done
 **Epic:** Epic 3 — Operator Monitors & Manages Applications
 **Created:** 2026-06-05
 
@@ -728,4 +728,14 @@ Recent commits:
 - 2026-06-05: Implement Story 3.5 — Edit Application & One-Way Status Tracking. ADD PUT handler vào route.ts; tạo status/route.ts; tạo EditModal.tsx; modify ApplicationDetail.tsx để thêm Edit button và modal. pnpm typecheck + pnpm lint đều pass.
 
 **Status:** review
+
+### Review Findings
+
+- [x] [Review][Patch] Lỗ hổng bảo mật nghiêm trọng - API Routes không có cơ chế xác thực người dùng (BOLA / IDOR) [apps/web/src/app/api/applications/[id]/route.ts:5]
+- [x] [Review][Patch] Thiếu chuyển đổi định dạng ảnh HEIC trong EditModal (HEIC Rendering Issue) [apps/web/src/components/dashboard/EditModal.tsx:68]
+- [x] [Review][Patch] Sự không nhất quán trong cache invalidation của TanStack Query [apps/web/src/components/dashboard/ApplicationDetail.tsx:88]
+- [x] [Review][Patch] Tiềm ẩn lỗi chuyển trạng thái ngược do boundary index trong status/route.ts [apps/web/src/app/api/applications/[id]/status/route.ts:43]
+- [x] [Review][Patch] Thiếu content-type phù hợp khi upload ảnh trong EditModal [apps/web/src/components/dashboard/EditModal.tsx:76]
+
+
 

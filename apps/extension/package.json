@@ -15,6 +15,8 @@
     "lint": "echo 'lint: ok'"
   },
   "dependencies": {
+    "@david-agency/shared": "workspace:*",
+    "@plasmohq/storage": "^1.15.0",
     "plasmo": "0.90.5",
     "react": "18.2.0",
     "react-dom": "18.2.0"
@@ -31,6 +33,12 @@
   "manifest": {
     "host_permissions": [
       "https://*/*"
-    ]
+    ],
+    "externally_connectable": {
+      "matches": [
+        "http://localhost/*",
+        "https://david-agency.vercel.app/*"
+      ]
+    }
   }
 }

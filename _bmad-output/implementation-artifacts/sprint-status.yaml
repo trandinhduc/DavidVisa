@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: 2026-05-31
-last_updated: 2026-06-05 (story-4.1-done)
+last_updated: 2026-06-06 (story-4.2-review)
 project: VisaAgency
 project_key: NOKEY
 tracking_system: file-system
@@ -70,8 +70,8 @@ development_status:
   3-1-operator-authentication-and-route-protection: done
   3-2-dashboard-layout-and-sidebar-navigation: done
   3-3-applications-list-with-filter-tabs-and-search: done
-  3-4-application-detail-view-with-signed-url-images: review
-  3-5-edit-application-and-one-way-status-tracking: review
+  3-4-application-detail-view-with-signed-url-images: done
+  3-5-edit-application-and-one-way-status-tracking: done
   epic-3-retrospective: optional
 
   # ─────────────────────────────────────────────
@@ -79,8 +79,8 @@ development_status:
   # ─────────────────────────────────────────────
   epic-4: in-progress
   4-1-create-data-workflow-raw-to-ready-transition: done
-  4-2-pre-push-confirmation-modal: backlog
-  4-3-chrome-extension-setup-and-dashboard-message-protocol: backlog
+  4-2-pre-push-confirmation-modal: review
+  4-3-chrome-extension-setup-and-dashboard-message-protocol: review
   4-4-chrome-extension-auto-fill-evisa-gov-vn-and-status-update: backlog
   4-5-manual-export-fallback: backlog
   epic-4-retrospective: optional

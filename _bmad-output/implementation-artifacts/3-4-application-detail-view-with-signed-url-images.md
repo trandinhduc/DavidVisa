@@ -6,7 +6,7 @@ baseline_commit: 720eb54d46bd42b57af907de4f08b95c7f8b9f35
 
 **Story ID:** 3.4
 **Story Key:** 3-4-application-detail-view-with-signed-url-images
-**Status:** review
+**Status:** done
 **Epic:** Epic 3 — Operator Monitors & Manages Applications
 **Created:** 2026-06-05
 
@@ -556,3 +556,13 @@ Recent commits liên quan:
 
 ### Change Log
 - 2026-06-05: Implement Story 3.4 — Application Detail View with Signed URL Images. Tạo 6 file mới: 2 API routes, 1 hook file (2 hooks), 2 components, 1 page. pnpm typecheck && pnpm lint pass.
+
+### Review Findings
+
+- [x] [Review][Patch] Lỗ hổng bảo mật nghiêm trọng - API Routes không có cơ chế xác thực người dùng (BOLA / IDOR) [apps/web/src/app/api/applications/[id]/route.ts:5]
+- [x] [Review][Patch] Thiếu chuyển đổi định dạng ảnh HEIC trong EditModal (HEIC Rendering Issue) [apps/web/src/components/dashboard/EditModal.tsx:68]
+- [x] [Review][Patch] Sự không nhất quán trong cache invalidation của TanStack Query [apps/web/src/components/dashboard/ApplicationDetail.tsx:88]
+- [x] [Review][Patch] Tiềm ẩn lỗi chuyển trạng thái ngược do boundary index trong status/route.ts [apps/web/src/app/api/applications/[id]/status/route.ts:43]
+- [x] [Review][Patch] Thiếu content-type phù hợp khi upload ảnh trong EditModal [apps/web/src/components/dashboard/EditModal.tsx:76]
+
+

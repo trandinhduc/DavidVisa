@@ -1,4 +1,5 @@
 import { createServiceClient } from '@/lib/supabase-server'
+import { createServerComponentClient } from '@/lib/supabase-server-component'
 import { NextResponse } from 'next/server'
 
 const EXPIRY = 60 * 60 // 1 hour in seconds
@@ -8,6 +9,15 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authClient = await createServerComponentClient()
+    const { data: { session } } = await authClient.auth.getSession()
+    if (!session) {
+      return NextResponse.json(
+        { data: null, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } },
+        { status: 401 }
+      )
+    }
+
     const { id } = await params
     const supabase = createServiceClient()
 
@@ -49,3 +59,4 @@ export async function GET(
     )
   }
 }
+

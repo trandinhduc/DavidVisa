@@ -8,8 +8,17 @@ import { StatusBadge } from './StatusBadge'
 import { ApplicationImages } from './ApplicationImages'
 import { EditModal } from './EditModal'
 import { CreateDataModal } from './CreateDataModal'
+import { PushConfirmModal } from './PushConfirmModal'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { useSignedUrls } from '@/hooks/use-application'
 import { Button } from '@/components/ui/button'
-import type { ApplicationData } from '@david-agency/shared'
+import { EXTENSION_ID } from '@david-agency/shared'
+import type { ApplicationData, PushToEvisaMessage } from '@david-agency/shared'
 
 interface ApplicationDetailProps {
   application: ApplicationData
@@ -42,6 +51,9 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
   const queryClient = useQueryClient()
   const [editOpen, setEditOpen] = useState(false)
   const [createDataOpen, setCreateDataOpen] = useState(false)
+  const [pushConfirmOpen, setPushConfirmOpen] = useState(false)
+  const [isPushing, setIsPushing] = useState(false)
+  const { data: signedUrlsData, isLoading: isLoadingSignedUrls } = useSignedUrls(application.id)
 
   // Status-based visibility flags
   // AC-3: Edit button only visible when status is 'raw'
@@ -139,19 +151,33 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
             </Button>
           )}
 
-          {/* AC-6 (story 4.1): "Push to eVisa" button — shown when status is 'ready' (story 4.2 will wire this up) */}
-          {showPushToEvisa && (
-            <Button
-              id="push-to-evisa-btn"
-              variant="default"
-              size="sm"
-              className="flex items-center gap-1.5"
-              disabled
-            >
-              Push to eVisa
-              <ChevronRight className="h-3.5 w-3.5" />
-            </Button>
-          )}
+          {/* AC-8 (story 4.2): Tooltip for "Push to eVisa" button when not ready */}
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="inline-block" tabIndex={0}>
+                  <Button
+                    id="push-to-evisa-btn"
+                    variant="default"
+                    size="sm"
+                    className="flex items-center gap-1.5"
+                    disabled={!showPushToEvisa}
+                    onClick={() => {
+                      if (showPushToEvisa) setPushConfirmOpen(true)
+                    }}
+                  >
+                    Push to eVisa
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </TooltipTrigger>
+              {!showPushToEvisa && (
+                <TooltipContent>
+                  <p>Application must be Ready before pushing</p>
+                </TooltipContent>
+              )}
+            </Tooltip>
+          </TooltipProvider>
         </div>
       </div>
 
@@ -218,6 +244,55 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
           open={createDataOpen}
           onOpenChange={setCreateDataOpen}
           onConfirm={handleCreateDataConfirm}
+        />
+      )}
+
+      {/* Push Confirm Modal — mounted when status is 'ready' */}
+      {showPushToEvisa && (
+        <PushConfirmModal
+          application={application}
+          portraitSignedUrl={signedUrlsData?.portraitSignedUrl ?? null}
+          isLoadingImage={isLoadingSignedUrls}
+          open={pushConfirmOpen}
+          onOpenChange={setPushConfirmOpen}
+          isConfirming={isPushing}
+          onConfirm={() => {
+            setIsPushing(true)
+            const message: PushToEvisaMessage = {
+              type: 'PUSH_TO_EVISA',
+              applicationId: application.id,
+              appId: application.appId,
+              lastName: application.lastName,
+              firstName: application.firstName,
+              arrivalDate: application.arrivalDate,
+              portraitSignedUrl: signedUrlsData?.portraitSignedUrl ?? null,
+              passportSignedUrl: signedUrlsData?.passportSignedUrl ?? null,
+            }
+
+            try {
+              if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) {
+                throw new Error("Chrome extension API not available")
+              }
+              
+              chrome.runtime.sendMessage(EXTENSION_ID, message, (response: { success?: boolean } | undefined) => {
+                setIsPushing(false)
+                if (chrome.runtime.lastError || !response?.success) {
+                  console.error('Extension message failed:', chrome.runtime.lastError)
+                  toast.error('Extension not found — make sure it is installed and enabled.', {
+                    duration: Infinity,
+                  })
+                } else {
+                  setPushConfirmOpen(false)
+                }
+              })
+            } catch (err) {
+              setIsPushing(false)
+              console.error('Extension error:', err)
+              toast.error('Extension not found — make sure it is installed and enabled.', {
+                duration: Infinity,
+              })
+            }
+          }}
         />
       )}
     </div>

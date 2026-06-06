@@ -1,4 +1,5 @@
 import { createServiceClient } from '@/lib/supabase-server'
+import { createServerComponentClient } from '@/lib/supabase-server-component'
 import { NextResponse } from 'next/server'
 import { STATUS_FLOW } from '@david-agency/shared'
 import type { ApplicationStatus } from '@david-agency/shared'
@@ -8,6 +9,15 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authClient = await createServerComponentClient()
+    const { data: { session } } = await authClient.auth.getSession()
+    if (!session) {
+      return NextResponse.json(
+        { data: null, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } },
+        { status: 401 }
+      )
+    }
+
     const { id } = await params
     const body = await request.json()
     const newStatus = body?.status as ApplicationStatus
@@ -38,6 +48,14 @@ export async function PUT(
 
     const currentIndex = STATUS_FLOW.indexOf(current.status as ApplicationStatus)
     const newIndex = STATUS_FLOW.indexOf(newStatus)
+
+    // Handle database corrupt status cases
+    if (currentIndex === -1) {
+      return NextResponse.json(
+        { data: null, error: { message: 'Database state corrupted', code: 'DATABASE_CORRUPTED' } },
+        { status: 500 }
+      )
+    }
 
     // Enforce one-way status transitions — no backward transitions allowed (AC-5)
     if (newIndex <= currentIndex) {
@@ -73,3 +91,4 @@ export async function PUT(
     )
   }
 }
+
