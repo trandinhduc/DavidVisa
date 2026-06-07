@@ -1,5 +1,3 @@
-import heic2any from 'heic2any';
-
 export async function convertHeicToJpg(file: File): Promise<File> {
   const isHeic = ['image/heic', 'image/heif'].includes(file.type) || /\.(heic|heif)$/i.test(file.name);
   if (!isHeic) {
@@ -7,6 +5,7 @@ export async function convertHeicToJpg(file: File): Promise<File> {
   }
 
   try {
+    const heic2any = (await import('heic2any')).default;
     const convertedBlob = await heic2any({
       blob: file,
       toType: 'image/jpeg',

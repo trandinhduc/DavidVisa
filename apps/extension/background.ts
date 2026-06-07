@@ -18,7 +18,10 @@ chrome.runtime.onMessageExternal.addListener(
 
     if (message.type === "PUSH_TO_EVISA") {
       storage.set("pendingApplication", message)
-        .then(() => sendResponse({ success: true }))
+        .then(() => {
+          chrome.windows.create({ url: "https://evisa.gov.vn" })
+          sendResponse({ success: true })
+        })
         .catch((error) => {
           console.error("Failed to store pending application", error)
           sendResponse({ success: false, error: String(error) })

@@ -1,277 +1,141 @@
 You are an Acceptance Auditor. Review this diff against the spec and context docs. Check for: violations of acceptance criteria, deviations from spec intent, missing implementation of specified behavior, contradictions between spec constraints and actual code. Output findings as a Markdown list. Each finding: one-line title, which AC/constraint it violates, and evidence from the diff.
 
 ### Specification File
-# Story 4.4: Chrome Extension — Auto-Fill evisa.gov.vn & Status Update
+# Story 4.5: Manual Export Fallback
 
 Status: review
 
 ## Story
 
 As an operator,
-I want the Chrome Extension to automatically fill the evisa.gov.vn form with the application data,
-So that I only need to review the pre-filled form and click Submit — eliminating all manual copy-paste.
+I want to download an application's data as a structured file at any time,
+So that I can manually fill evisa.gov.vn if the Chrome Extension is broken or the site changes its interface.
 
-## Acceptance Criteria
+## Giao diện / Thiết kế (UX/UI)
 
-1. **Given** the extension has received a `PushToEvisaMessage` and the operator navigates to evisa.gov.vn
-2. **When** the content script `evisa-filler.ts` runs on the evisa.gov.vn form page
-3. **Then** it reads `pendingApplication` from `chrome.storage.local`
-4. **And** it maps and fills application fields into the corresponding evisa.gov.vn DOM inputs: Last Name, First Name, Arrival Date, and other prepared fields
-5. **And** it downloads Portrait and Passport photos via the signed URLs and programmatically sets the file upload inputs on evisa.gov.vn
-6. **And** the extension does NOT submit the form — it stops after filling all fields and shows a browser notification: "Form filled — please review and submit."
-7. **And** after the operator submits on evisa.gov.vn and returns to the dashboard, they click "Mark as Submitted" which calls `PUT /api/applications/[id]/status` with `{ status: 'submitted' }`
-8. **And** after successful status update: "Push to eVisa" button is disabled; StatusBadge shows "Submitted"
-9. **And** `chrome.storage.local` key `pendingApplication` is cleared after push completes
+- **Vị trí nút**: Đặt nút "Export" ở phần header của giao diện chi tiết hồ sơ (`ApplicationDetail.tsx`), cùng hàng với các nút hành động khác (Edit, Create Data, Push to eVisa, Mark as Submitted).
+- **Kiểu nút (Variant)**: Sử dụng variant `ghost` (theo yêu cầu AC là ghost variant).
+- **Trạng thái hiển thị**: Luôn luôn hiển thị, không bị ẩn hay vô hiệu hóa (disabled) bởi bất kỳ trạng thái nào của hồ sơ (`raw`, `ready`, `submitted`, `done`).
+
+## Tiêu chí chấp nhận (Acceptance Criteria)
+
+1. **Given** Operator đang ở trang chi tiết hồ sơ bất kỳ (không phân biệt trạng thái)
+2. **When** xem danh sách các nút hành động (action buttons)
+3. **Then** nút "Export" luôn hiển thị (variant ghost) — không bị chặn bởi trạng thái hồ sơ
+4. **And** click nút "Export" kích hoạt tải xuống một file JSON chứa các trường: `appId`, `lastName`, `firstName`, `email`, `arrivalDate`, `status`
+5. **And** tên file tải về tuân theo định dạng: `[appId]-export.json` (ví dụ: `DA-2026-0001-export.json`)
+6. **And** dữ liệu export KHÔNG bao gồm signed URLs hoặc đường dẫn lưu trữ ảnh (storage paths) — thông tin hình ảnh hoàn toàn bị loại bỏ
+7. **And** quá trình export được xử lý hoàn toàn ở phía client từ dữ liệu hồ sơ đã tải sẵn — không thực hiện thêm API call nào khác
 
 
 ### Diff
 ```diff
-diff --git a/apps/extension/background.ts b/apps/extension/background.ts
-index 3d425a2..5c830df 100644
---- a/apps/extension/background.ts
-+++ b/apps/extension/background.ts
-@@ -1,10 +1,10 @@
- import { Storage } from "@plasmohq/storage"
--import type { PushToEvisaMessage } from "@david-agency/shared"
-+import type { ExtensionMessage } from "@david-agency/shared"
+diff --git a/_bmad-output/implementation-artifacts/sprint-status.yaml b/_bmad-output/implementation-artifacts/sprint-status.yaml
+index dbd0321..3b0321e 100644
+--- a/_bmad-output/implementation-artifacts/sprint-status.yaml
++++ b/_bmad-output/implementation-artifacts/sprint-status.yaml
+@@ -35,7 +35,7 @@
+ # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
  
- const storage = new Storage()
+ generated: 2026-05-31
+-last_updated: 2026-06-06 (story-4.4-reviewed)
++last_updated: 2026-06-06 (story-4.5-reviewed)
+ project: VisaAgency
+ project_key: NOKEY
+ tracking_system: file-system
+@@ -82,7 +82,7 @@ development_status:
+   4-2-pre-push-confirmation-modal: review
+   4-3-chrome-extension-setup-and-dashboard-message-protocol: review
+   4-4-chrome-extension-auto-fill-evisa-gov-vn-and-status-update: done
+-  4-5-manual-export-fallback: backlog
++  4-5-manual-export-fallback: review
+   epic-4-retrospective: optional
  
- chrome.runtime.onMessageExternal.addListener(
--  (message: PushToEvisaMessage, sender, sendResponse) => {
-+  (message: ExtensionMessage, sender, sendResponse) => {
-     // Determine allowed origin based on environment
-     const allowedOrigin =
-       process.env.NODE_ENV === "development"
-@@ -26,6 +26,16 @@ chrome.runtime.onMessageExternal.addListener(
-       return true // Keep the message channel open for the async response
-     }
- 
-+    if (message.type === "CLEAR_PENDING_APPLICATION") {
-+      storage.remove("pendingApplication")
-+        .then(() => sendResponse({ success: true }))
-+        .catch((error) => {
-+          console.error("Failed to clear pending application", error)
-+          sendResponse({ success: false, error: String(error) })
-+        })
-+      return true
-+    }
-+
-     sendResponse({ success: false, error: "Unknown message type" })
-     return false // Response sent synchronously
-   }
-diff --git a/apps/extension/contents/evisa-filler.ts b/apps/extension/contents/evisa-filler.ts
-new file mode 100644
-index 0000000..328dbdf
---- /dev/null
-+++ b/apps/extension/contents/evisa-filler.ts
-@@ -0,0 +1,110 @@
-+import type { PlasmoCSConfig } from "plasmo"
-+import { Storage } from "@plasmohq/storage"
-+import type { PushToEvisaMessage } from "@david-agency/shared"
-+
-+export const config: PlasmoCSConfig = {
-+  matches: ["https://evisa.xuatnhapcanh.gov.vn/*", "https://*.evisa.gov.vn/*", "https://evisa.gov.vn/*"]
-+}
-+
-+const storage = new Storage()
-+
-+// Function to close popup if it exists
-+function handleBlockingPopup() {
-+  // Common selectors for close buttons or confirmation buttons on ads/notices
-+  const closeSelectors = [
-+    '.btn-close', '.modal-close', '[aria-label="Close"]', '#btnClose', '.close-popup',
-+    'button:contains("Đóng")', 'button:contains("Close")'
-+  ]
-+  
-+  for (const selector of closeSelectors) {
-+    try {
-+      // Use standard querySelector, ignoring custom pseudo-classes like :contains for safety
-+      const btns = document.querySelectorAll(selector.split(':')[0])
-+      for (let i = 0; i < btns.length; i++) {
-+        const btn = btns[i] as HTMLElement
-+        if (btn && btn.offsetParent !== null) { // visible
-+          if (selector.includes('contains')) {
-+            const text = selector.match(/contains\("(.*)"\)/)?.[1]
-+            if (text && !btn.textContent?.includes(text)) continue
-+          }
-+          btn.click()
-+          console.log('Closed blocking popup using selector:', selector)
-+          return
-+        }
-+      }
-+    } catch (e) {
-+      // ignore invalid selectors
-+    }
-+  }
-+}
-+
-+// Helper to fill text inputs
-+function fillInput(selector: string, value: string) {
-+  const el = document.querySelector(selector) as HTMLInputElement
-+  if (el) {
-+    el.value = value
-+    el.dispatchEvent(new Event('input', { bubbles: true }))
-+    el.dispatchEvent(new Event('change', { bubbles: true }))
-+    el.dispatchEvent(new Event('blur', { bubbles: true }))
-+  }
-+}
-+
-+async function handlePhotoUpload(url: string, selector: string) {
-+  try {
-+    const response = await fetch(url)
-+    const blob = await response.blob()
-+    const file = new File([blob], "upload.jpg", { type: blob.type || "image/jpeg" })
-+    
-+    const dataTransfer = new DataTransfer()
-+    dataTransfer.items.add(file)
-+    
-+    const input = document.querySelector(selector) as HTMLInputElement
-+    if (input) {
-+      input.files = dataTransfer.files
-+      input.dispatchEvent(new Event('change', { bubbles: true }))
-+    } else {
-+      console.warn("File input not found for selector:", selector)
-+    }
-+  } catch (err) {
-+    console.error("Failed to upload photo from url:", url, err)
-+  }
-+}
-+
-+async function fillForm() {
-+  // Periodically check for popups and close them
-+  const popupInterval = setInterval(handleBlockingPopup, 1000)
-+
-+  try {
-+    const pendingApp = await storage.get<PushToEvisaMessage>("pendingApplication")
-+    if (!pendingApp) return
-+
-+    console.log("Found pending application, starting auto-fill...", pendingApp)
-+
-+    // Basic heuristic selectors - adjust to match actual evisa.gov.vn DOM
-+    fillInput('input[name="surname"], input[id*="surname" i], input[id*="lastname" i]', pendingApp.lastName)
-+    fillInput('input[name="givenName"], input[id*="givenname" i], input[id*="firstname" i]', pendingApp.firstName)
-+    fillInput('input[name="arrivalDate"], input[id*="arrivaldate" i]', pendingApp.arrivalDate)
-+
-+    // Handle Photos
-+    if (pendingApp.portraitSignedUrl) {
-+      await handlePhotoUpload(pendingApp.portraitSignedUrl, 'input[type="file"][id*="portrait" i], input[type="file"][name*="portrait" i]')
-+    }
-+    if (pendingApp.passportSignedUrl) {
-+      await handlePhotoUpload(pendingApp.passportSignedUrl, 'input[type="file"][id*="passport" i], input[type="file"][name*="passport" i]')
-+    }
-+
-+    // Stop and notify user
-+    alert("Form filled — please review and submit.")
-+    
-+  } catch (error) {
-+    console.error("Error auto-filling form:", error)
-+  } finally {
-+    // Clear interval after some time
-+    setTimeout(() => clearInterval(popupInterval), 10000)
-+  }
-+}
-+
-+// Start execution
-+window.addEventListener("load", () => {
-+  setTimeout(fillForm, 1000) // slight delay to allow scripts to initialize
-+})
+   # ─────────────────────────────────────────────
 diff --git a/apps/web/src/components/dashboard/ApplicationDetail.tsx b/apps/web/src/components/dashboard/ApplicationDetail.tsx
-index ded7264..ced7a27 100644
+index ced7a27..4336103 100644
 --- a/apps/web/src/components/dashboard/ApplicationDetail.tsx
 +++ b/apps/web/src/components/dashboard/ApplicationDetail.tsx
-@@ -109,6 +109,51 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
+@@ -1,7 +1,7 @@
+ 'use client'
+ 
+ import { useState } from 'react'
+-import { Pencil, ChevronRight } from 'lucide-react'
++import { Pencil, ChevronRight, Download } from 'lucide-react'
+ import { useQueryClient } from '@tanstack/react-query'
+ import { toast } from 'sonner'
+ import { StatusBadge } from './StatusBadge'
+@@ -154,6 +154,35 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
      }
    }
  
-+  const handleMarkAsSubmitted = async () => {
-+    // Optimistic update
-+    const previousData = queryClient.getQueryData<ApplicationData>([
-+      'applications',
-+      application.id,
-+    ])
-+
-+    queryClient.setQueryData<ApplicationData>(['applications', application.id], (old: ApplicationData | undefined) => {
-+      if (!old) return old
-+      return { ...old, status: 'submitted' }
-+    })
++  const handleExport = () => {
++    const dataToExport = {
++      appId: application.appId,
++      lastName: application.lastName,
++      firstName: application.firstName,
++      email: application.email,
++      arrivalDate: application.arrivalDate,
++      status: application.status,
++    }
 +
 +    try {
-+      const res = await fetch(`/api/applications/${application.id}/status`, {
-+        method: 'PUT',
-+        headers: { 'Content-Type': 'application/json' },
-+        body: JSON.stringify({ status: 'submitted' }),
++      const blob = new Blob([JSON.stringify(dataToExport, null, 2)], {
++        type: 'application/json',
 +      })
-+
-+      const json = await res.json()
-+
-+      if (!res.ok || json.error) {
-+        throw new Error(json.error?.message ?? 'Failed to update status')
-+      }
-+
-+      await queryClient.invalidateQueries({ queryKey: ['applications'] })
-+
-+      // Clear the extension's pending application
-+      try {
-+        if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-+          chrome.runtime.sendMessage(EXTENSION_ID, { type: 'CLEAR_PENDING_APPLICATION' })
-+        }
-+      } catch (err) {
-+        console.error('Failed to send clear message to extension:', err)
-+      }
-+
++      const url = URL.createObjectURL(blob)
++      const downloadAnchor = document.createElement('a')
++      downloadAnchor.href = url
++      downloadAnchor.download = `${application.appId}-export.json`
++      document.body.appendChild(downloadAnchor)
++      downloadAnchor.click()
++      document.body.removeChild(downloadAnchor)
++      URL.revokeObjectURL(url)
++      toast.success('Xuất file dữ liệu thành công!')
 +    } catch (err) {
-+      const error = err instanceof Error ? err : new Error('Unknown error occurred')
-+      queryClient.setQueryData(['applications', application.id], previousData)
-+      toast.error(error.message || 'Failed to update status — please try again.', {
-+        duration: Infinity,
-+      })
++      console.error('Failed to export application:', err)
++      toast.error('Có lỗi xảy ra khi xuất dữ liệu.')
 +    }
 +  }
 +
    return (
      <div className="space-y-8">
        {/* Header — Full Name + App ID + Status + action buttons */}
-@@ -178,6 +223,19 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
-               )}
-             </Tooltip>
-           </TooltipProvider>
-+
-+          {/* AC-7 (story 4.4): Mark as Submitted button */}
-+          {showPushToEvisa && (
-+            <Button
-+              id="mark-as-submitted-btn"
-+              variant="outline"
-+              size="sm"
-+              onClick={handleMarkAsSubmitted}
-+              className="flex items-center gap-1.5"
-+            >
-+              Mark as Submitted
-+            </Button>
-+          )}
-         </div>
-       </div>
+@@ -169,6 +198,18 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
+         <div className="flex items-center gap-3 shrink-0 pt-1">
+           <StatusBadge status={application.status} />
  
-diff --git a/packages/shared/src/index.ts b/packages/shared/src/index.ts
-index 085abc6..3f7437f 100644
---- a/packages/shared/src/index.ts
-+++ b/packages/shared/src/index.ts
-@@ -1,2 +1,2 @@
--export type { ApplicationData, ApplicationStatus, PushToEvisaMessage } from './types'
-+export type { ApplicationData, ApplicationStatus, PushToEvisaMessage, ClearPendingApplicationMessage, ExtensionMessage } from './types'
- export { STATUS_FLOW, EXTENSION_ID } from './constants'
-diff --git a/packages/shared/src/types.ts b/packages/shared/src/types.ts
-index 1d21e8d..3a007fb 100644
---- a/packages/shared/src/types.ts
-+++ b/packages/shared/src/types.ts
-@@ -26,3 +26,9 @@ export interface PushToEvisaMessage {
-   portraitSignedUrl: string | null
-   passportSignedUrl: string | null
- }
++          {/* Export Button (Ghost variant, always visible) */}
++          <Button
++            id="export-application-btn"
++            variant="ghost"
++            size="sm"
++            onClick={handleExport}
++            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
++          >
++            <Download className="h-3.5 w-3.5" />
++            Export
++          </Button>
 +
-+export interface ClearPendingApplicationMessage {
-+  type: 'CLEAR_PENDING_APPLICATION'
-+}
-+
-+export type ExtensionMessage = PushToEvisaMessage | ClearPendingApplicationMessage
+           {/* AC-1 (story 3.5): Edit button visible only when status is 'raw'; hidden for ready/submitted/done */}
+           {canEdit && (
+             <Button
+diff --git a/apps/web/src/lib/heic-convert.ts b/apps/web/src/lib/heic-convert.ts
+index 90838df..98452a4 100644
+--- a/apps/web/src/lib/heic-convert.ts
++++ b/apps/web/src/lib/heic-convert.ts
+@@ -1,5 +1,3 @@
+-import heic2any from 'heic2any';
+-
+ export async function convertHeicToJpg(file: File): Promise<File> {
+   const isHeic = ['image/heic', 'image/heif'].includes(file.type) || /\.(heic|heif)$/i.test(file.name);
+   if (!isHeic) {
+@@ -7,6 +5,7 @@ export async function convertHeicToJpg(file: File): Promise<File> {
+   }
+ 
+   try {
++    const heic2any = (await import('heic2any')).default;
+     const convertedBlob = await heic2any({
+       blob: file,
+       toType: 'image/jpeg',
 ```

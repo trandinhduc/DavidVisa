@@ -292,7 +292,7 @@ Extension nhận Application data khi Operator xác nhận Push từ Dashboard.
 Extension tự động điền các field trên evisa.gov.vn với data của Application.
 
 **Consequences (testable):**
-- Extension mở tab evisa.gov.vn (hoặc navigate đến đúng trang form)
+- Extension tự động mở một cửa sổ trình duyệt mới (New Window) đến trang evisa.gov.vn khi nhận được dữ liệu từ Dashboard.
 - Điền tự động các fields tương ứng: họ tên, ngày đến, và các fields khác do Richard chuẩn bị trong bước Create Data
 - Portrait Photo và Passport Photo được upload tự động vào đúng field
 - Tất cả thao tác hoàn tất trước khi Operator cần can thiệp

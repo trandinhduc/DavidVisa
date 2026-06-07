@@ -522,7 +522,7 @@ So that it has all the information it needs to auto-fill evisa.gov.vn accurately
 **Then** the Dashboard sends a `PushToEvisaMessage` via `chrome.runtime.sendMessage(EXTENSION_ID, message)` — EXTENSION_ID imported from `packages/shared/src/constants.ts`
 **And** the message contains: `type: 'PUSH_TO_EVISA'`, `applicationId`, `appId`, `lastName`, `firstName`, `arrivalDate`, `portraitSignedUrl`, `passportSignedUrl` (fresh signed URLs, 1 hour expiry)
 **And** `background.ts` listens via `chrome.runtime.onMessageExternal.addListener` and verifies `sender.origin === 'https://david-agency.vercel.app'` before processing — messages from other origins are silently ignored
-**And** on successful receipt: payload stored in `chrome.storage.local` under key `pendingApplication`
+**And** on successful receipt: payload stored in `chrome.storage.local` under key `pendingApplication` và tự động mở một cửa sổ Chrome mới đến trang `https://evisa.gov.vn`
 **And** on failed message delivery: Dashboard shows persistent error toast "Extension not found — make sure it is installed and enabled."; application status does not change
 **And** extension `popup.tsx` shows "Ready to fill" when `pendingApplication` exists in storage, "No pending application" otherwise
 
@@ -536,8 +536,8 @@ So that I only need to review the pre-filled form and click Submit — eliminati
 
 **Acceptance Criteria:**
 
-**Given** the extension has received a `PushToEvisaMessage` and the operator navigates to evisa.gov.vn
-**When** the content script `evisa-filler.ts` runs on the evisa.gov.vn form page
+**Given** the extension has received a `PushToEvisaMessage` và một cửa sổ mới đến trang evisa.gov.vn đã được tự động mở
+**When** the content script `evisa-filler.ts` chạy trên trang form evisa.gov.vn trong cửa sổ mới đó
 **Then** it reads `pendingApplication` from `chrome.storage.local`
 **And** it maps and fills application fields into the corresponding evisa.gov.vn DOM inputs: Last Name, First Name, Arrival Date, and other prepared fields
 **And** it downloads Portrait and Passport photos via the signed URLs and programmatically sets the file upload inputs on evisa.gov.vn

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Pencil, ChevronRight } from 'lucide-react'
+import { Pencil, ChevronRight, Download } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { StatusBadge } from './StatusBadge'
@@ -154,6 +154,37 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
     }
   }
 
+  const handleExport = () => {
+    const dataToExport = {
+      appId: application.appId,
+      lastName: application.lastName,
+      firstName: application.firstName,
+      email: application.email,
+      arrivalDate: application.arrivalDate,
+      status: application.status,
+    }
+
+    try {
+      const blob = new Blob([JSON.stringify(dataToExport, null, 2)], {
+        type: 'application/json',
+      })
+      const url = URL.createObjectURL(blob)
+      const downloadAnchor = document.createElement('a')
+      downloadAnchor.href = url
+      downloadAnchor.download = `${application.appId}-export.json`
+      document.body.appendChild(downloadAnchor)
+      downloadAnchor.click()
+      document.body.removeChild(downloadAnchor)
+      setTimeout(() => {
+        URL.revokeObjectURL(url)
+      }, 100)
+      toast.success('Xuất file dữ liệu thành công!')
+    } catch (err) {
+      console.error('Failed to export application:', err)
+      toast.error('Có lỗi xảy ra khi xuất dữ liệu.')
+    }
+  }
+
   return (
     <div className="space-y-8">
       {/* Header — Full Name + App ID + Status + action buttons */}
@@ -168,6 +199,18 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
         </div>
         <div className="flex items-center gap-3 shrink-0 pt-1">
           <StatusBadge status={application.status} />
+
+          {/* Export Button (Ghost variant, always visible) */}
+          <Button
+            id="export-application-btn"
+            variant="ghost"
+            size="sm"
+            onClick={handleExport}
+            className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export
+          </Button>
 
           {/* AC-1 (story 3.5): Edit button visible only when status is 'raw'; hidden for ready/submitted/done */}
           {canEdit && (

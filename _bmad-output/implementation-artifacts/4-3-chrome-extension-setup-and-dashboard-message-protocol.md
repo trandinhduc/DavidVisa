@@ -20,15 +20,16 @@ So that it has all the information it needs to auto-fill evisa.gov.vn accurately
 4. **And** the message contains: `type: 'PUSH_TO_EVISA'`, `applicationId`, `appId`, `lastName`, `firstName`, `arrivalDate`, `portraitSignedUrl`, `passportSignedUrl` (fresh signed URLs, 1 hour expiry)
 5. **And** `background.ts` listens via `chrome.runtime.onMessageExternal.addListener` and verifies `sender.origin === 'https://david-agency.vercel.app'` before processing — messages from other origins are silently ignored
 6. **And** on successful receipt: payload stored in `chrome.storage.local` under key `pendingApplication`
-7. **And** on failed message delivery: Dashboard shows persistent error toast "Extension not found — make sure it is installed and enabled."; application status does not change
-8. **And** extension `popup.tsx` shows "Ready to fill" when `pendingApplication` exists in storage, "No pending application" otherwise
+7. **And** the background script automatically opens a new Chrome window pointing to `https://evisa.gov.vn`
+8. **And** on failed message delivery: Dashboard shows persistent error toast "Extension not found — make sure it is installed and enabled."; application status does not change
+9. **And** extension `popup.tsx` shows "Ready to fill" when `pendingApplication` exists in storage, "No pending application" otherwise
 
 ## Tasks / Subtasks
 
-- [x] Task 1: Cập nhật Extension Background Script (AC: 1, 5, 6)
+- [x] Task 1: Cập nhật Extension Background Script (AC: 1, 5, 6, 7)
   - [x] Thêm listener trong `apps/extension/src/background.ts` sử dụng `chrome.runtime.onMessageExternal.addListener`
   - [x] Xác minh `sender.origin === 'https://david-agency.vercel.app'` - bỏ qua message nếu không hợp lệ
-  - [x] Lưu payload vào `chrome.storage.local` với key `pendingApplication` khi nhận được message hợp lệ
+  - [x] Lưu payload vào `chrome.storage.local` với key `pendingApplication` khi nhận được message hợp lệ và tự động mở một cửa sổ trình duyệt mới đến `https://evisa.gov.vn`
 - [x] Task 2: Cập nhật Extension Popup (AC: 8)
   - [x] Chỉnh sửa `apps/extension/src/popup.tsx` để đọc `pendingApplication` từ `chrome.storage.local` (sử dụng hook `@plasmohq/storage/hook` nếu có)
   - [x] Hiển thị "Ready to fill" nếu có pending application, ngược lại hiển thị "No pending application"

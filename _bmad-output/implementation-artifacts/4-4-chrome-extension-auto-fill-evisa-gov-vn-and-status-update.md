@@ -14,8 +14,8 @@ So that I only need to review the pre-filled form and click Submit — eliminati
 
 ## Acceptance Criteria
 
-1. **Given** the extension has received a `PushToEvisaMessage` and the operator navigates to evisa.gov.vn
-2. **When** the content script `evisa-filler.ts` runs on the evisa.gov.vn form page
+1. **Given** the extension has received a `PushToEvisaMessage` và một cửa sổ mới đến trang evisa.gov.vn đã được tự động mở
+2. **When** the content script `evisa-filler.ts` chạy trên trang form evisa.gov.vn trong cửa sổ mới đó
 3. **Then** it reads `pendingApplication` from `chrome.storage.local`
 4. **And** it maps and fills application fields into the corresponding evisa.gov.vn DOM inputs: Last Name, First Name, Arrival Date, and other prepared fields
 5. **And** it downloads Portrait and Passport photos via the signed URLs and programmatically sets the file upload inputs on evisa.gov.vn
