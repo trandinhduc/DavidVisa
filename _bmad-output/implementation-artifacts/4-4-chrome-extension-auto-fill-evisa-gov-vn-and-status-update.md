@@ -14,28 +14,32 @@ So that I only need to review the pre-filled form and click Submit — eliminati
 
 ## Acceptance Criteria
 
-1. **Given** the extension has received a `PushToEvisaMessage` và một cửa sổ mới đến trang evisa.gov.vn đã được tự động mở
-2. **When** the content script `evisa-filler.ts` chạy trên trang form evisa.gov.vn trong cửa sổ mới đó
-3. **Then** it reads `pendingApplication` from `chrome.storage.local`
-4. **And** it maps and fills application fields into the corresponding evisa.gov.vn DOM inputs: Last Name, First Name, Arrival Date, and other prepared fields
-5. **And** it downloads Portrait and Passport photos via the signed URLs and programmatically sets the file upload inputs on evisa.gov.vn
-6. **And** the extension does NOT submit the form — it stops after filling all fields and shows a browser notification: "Form filled — please review and submit."
-7. **And** after the operator submits on evisa.gov.vn and returns to the dashboard, they click "Mark as Submitted" which calls `PUT /api/applications/[id]/status` with `{ status: 'submitted' }`
-8. **And** after successful status update: "Push to eVisa" button is disabled; StatusBadge shows "Submitted"
-9. **And** `chrome.storage.local` key `pendingApplication` is cleared after push completes
+1. **Given** the extension has received a `PushToEvisaMessage` và một cửa sổ mới đến trang `https://evisa.gov.vn/e-visa/foreigners` đã được tự động mở
+2. **When** the content script `evisa-filler.ts` chạy, nó chờ trang tải xong và kiểm tra xem có ở màn hình popup/confirmation không. Nó sử dụng cơ chế fallback tự động reload trang (`window.location.reload()`) nếu trang bị trắng sau 3.5s.
+3. **Then** nó tự động đánh dấu 2 ô checkbox Ant Design (`.ant-checkbox-wrapper`): "Confirm compliance with Vietnamese laws upon entry" và "Confirmation of reading carefully instructions and having completed application".
+4. **And** sau khi click 2 ô checkbox, nó tìm nút Next và bấm Next để chuyển sang trang form nhập liệu. Nếu trang form không tải được sau 4s, nó sẽ tự động reload lại trang.
+5. **And** khi trang form đã load xong (nhận diện qua chữ "FOREIGNER'S IMAGES"), nó reads `pendingApplication` from `chrome.storage.local`
+6. **And** it maps and fills application fields into the corresponding evisa.gov.vn DOM inputs: Last Name, First Name, Arrival Date, and other prepared fields
+7. **And** it downloads Portrait and Passport photos via the signed URLs and programmatically sets the file upload inputs on evisa.gov.vn (với 1 khoảng nghỉ 1 giây giữa 2 lần upload ảnh để tránh xung đột state của Vue/AntD).
+8. **And** the extension does NOT submit the form — it stops after filling all fields and shows a browser notification: "Form filled — please review and submit."
+9. **And** after the operator submits on evisa.gov.vn and returns to the dashboard, they click "Mark as Submitted" which calls `PUT /api/applications/[id]/status` with `{ status: 'submitted' }`
+10. **And** after successful status update: "Push to eVisa" button is disabled; StatusBadge shows "Submitted"
+11. **And** `chrome.storage.local` key `pendingApplication` is cleared after push completes
 
 ## Tasks / Subtasks
 
-- [x] Task 1: Create content script to auto-fill evisa form (AC: 1, 2, 3, 4, 6)
+- [x] Task 1: Create content script to auto-fill evisa form (AC: 1-8)
   - [x] Tạo file content script `evisa-filler.ts` trong `apps/extension/src/contents/` (match URL evisa.gov.vn).
-  - [x] Thêm logic phát hiện và tự động đóng các popup/modal thông báo/quảng cáo chặn màn hình (nếu có) trước khi bắt đầu điền form.
+  - [x] Xử lý multi-step: Ở trang đầu tiên, chờ popup hiển thị, check 2 ô confirm (Compliance và Read Instructions), rồi bấm Next.
+  - [x] Chờ sang trang nhập form, kiểm tra DOM elements để xác nhận trang load xong, rồi bắt đầu quá trình auto-fill.
+  - [x] Tích hợp hệ thống failsafe tự động F5 nếu server eVisa không phản hồi.
   - [x] Đọc thông tin ứng viên từ `chrome.storage.local` (sử dụng key `pendingApplication`).
   - [x] Ánh xạ các trường dữ liệu (Last Name, First Name, Arrival Date) vào DOM elements và gán giá trị (dispatch events để trigger JS của trang).
   - [x] Hiển thị thông báo: "Form filled — please review and submit." và không tự động submit form.
 - [x] Task 2: Handle image downloads and file inputs (AC: 5)
-  - [x] Lấy dữ liệu ảnh (fetch blob) từ `portraitSignedUrl` và `passportSignedUrl`. (Nếu gặp lỗi CORS có thể cần dùng background script để fetch dạng Base64 proxy).
+  - [x] Lấy dữ liệu ảnh (fetch blob) từ `portraitSignedUrl` và `passportSignedUrl` thông qua Background Script message để lách CORS.
   - [x] Chuyển đổi dữ liệu thành các `File` object.
-  - [x] Gán `File` object vào file upload inputs trên trang evisa bằng `DataTransfer` và trigger event `change`.
+  - [x] Gán `File` object vào file upload inputs trên trang evisa bằng `DataTransfer` và trigger event `change` + `input` lần lượt từng ảnh (cách nhau 1s).
 - [x] Task 3: Dashboard "Mark as Submitted" (AC: 7, 8, 9)
   - [x] Trên giao diện `ApplicationDetail` của dashboard, thêm nút "Mark as Submitted" hiển thị khi ở trạng thái `ready` (có thể xuất hiện sau khi đã bấm Push to eVisa).
   - [x] Gọi API `PUT /api/applications/[id]/status` chuyển sang `submitted`.
@@ -43,15 +47,19 @@ So that I only need to review the pre-filled form and click Submit — eliminati
   - [x] Gửi message từ dashboard sang extension để báo hoàn tất và extension thực hiện xóa key `pendingApplication` khỏi `chrome.storage.local`.
 
 ## Dev Notes
-- Để xử lý popup/quảng cáo hiện lên che form, content script có thể sử dụng `MutationObserver` hoặc `setInterval` (polling nhẹ) để chờ DOM của popup xuất hiện. Khi tìm thấy element nút "Đóng" hoặc "Xác nhận", script chỉ cần gọi `.click()` trên element đó, sau đó mới tiến hành auto-fill.
+- Logic auto-fill cần được chia làm 2 phase do trang eVisa có màn hình confirmation ban đầu:
+  1. **Phase 1**: Tại `/e-visa/foreigners`, chờ popup xuất hiện. Tìm 2 checkbox Ant Design -> click mô phỏng -> tìm nút Next -> click. Có timeout 3.5s và 4s để tự F5 nếu lỗi.
+  2. **Phase 2**: Tại trang form, chờ DOM input elements load xong -> điền form fields và upload ảnh (có delay 1s giữa mỗi ảnh).
+- Có thể dùng `setInterval` để kiểm tra liên tục sự xuất hiện của các checkbox trên popup, cũng như các form field, nhằm tránh lỗi script chạy quá sớm trước khi element render.
 - Để auto-fill các trường text input, cần dispatch các event thích hợp như `input`, `change` và đôi khi là `blur` để trang nhận ra thay đổi giá trị.
 - Đối với upload file, cách tiêu chuẩn là:
   ```javascript
   const dt = new DataTransfer();
   dt.items.add(new File([blob], "filename.jpg", { type: "image/jpeg" }));
-  const input = document.querySelector("input[type=file]");
+  const input = document.querySelectorAll("input[type=file]")[0];
   input.files = dt.files;
   input.dispatchEvent(new Event('change', { bubbles: true }));
+  input.dispatchEvent(new Event('input', { bubbles: true })); // Cho Vue/AntD
   ```
 - Nếu trang `evisa.gov.vn` có CORS chính sách nghiêm ngặt, việc fetch `signedUrl` trực tiếp ở Content script có thể bị block. Nếu thế, trong thư mục extension, mở một background listener proxy để tải qua fetch ở service worker sau đó trả blob/base64 xuống content script.
 - Trên dashboard, giao diện hiện đang có nút "Push to eVisa". Khi status update thành submitted, nút đó sẽ disable hoặc biến mất, thay thế bằng badge Submitted.

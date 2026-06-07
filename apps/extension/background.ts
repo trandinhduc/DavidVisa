@@ -19,7 +19,7 @@ chrome.runtime.onMessageExternal.addListener(
     if (message.type === "PUSH_TO_EVISA") {
       storage.set("pendingApplication", message)
         .then(() => {
-          chrome.windows.create({ url: "https://evisa.gov.vn" })
+          chrome.windows.create({ url: "https://evisa.gov.vn/e-visa/foreigners" })
           sendResponse({ success: true })
         })
         .catch((error) => {
