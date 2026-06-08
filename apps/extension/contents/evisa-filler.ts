@@ -34,14 +34,97 @@ function handleBlockingPopup() {
   }
 }
 
-function fillInput(selector: string, value: string) {
-  const el = document.querySelector(selector) as HTMLInputElement
-  if (el) {
-    el.value = value
-    el.dispatchEvent(new Event('input', { bubbles: true }))
-    el.dispatchEvent(new Event('change', { bubbles: true }))
-    el.dispatchEvent(new Event('blur', { bubbles: true }))
+async function autoFill(selector: string, value: string | null | undefined, labelTextFallback?: string) {
+  if (!value) return;
+  let el = document.querySelector(selector) as HTMLInputElement;
+
+  if (!el && labelTextFallback) {
+    const labels = Array.from(document.querySelectorAll('label, .ant-form-item-label label'));
+    const targetLabel = labels.find(l => (l.textContent || '').toLowerCase().includes(labelTextFallback.toLowerCase()));
+    if (targetLabel) {
+      const htmlFor = targetLabel.getAttribute('for');
+      if (htmlFor) {
+        el = document.getElementById(htmlFor) as HTMLInputElement;
+      } else {
+        const wrapper = targetLabel.closest('.ant-row, .form-group, .ant-form-item');
+        if (wrapper) el = wrapper.querySelector('input') as HTMLInputElement;
+      }
+    }
   }
+
+  if (!el) {
+    console.warn("Could not find element for:", selector, labelTextFallback);
+    return;
+  }
+
+  let disabledRetries = 0;
+  while (disabledRetries < 10) {
+    const parentSelect = el.closest('.ant-select');
+    const isDisabled = el.disabled || el.hasAttribute('disabled') || (parentSelect && parentSelect.classList.contains('ant-select-disabled'));
+    if (!isDisabled) break;
+    await new Promise(r => setTimeout(r, 500));
+    disabledRetries++;
+  }
+
+  if (el.className.includes('ant-select-selection-search-input')) {
+    el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    el.click();
+    await new Promise(r => setTimeout(r, 150));
+    
+    el.value = value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    
+    let optionClicked = false;
+    let optRetries = 0;
+    while (!optionClicked && optRetries < 15) {
+      await new Promise(r => setTimeout(r, 200));
+      
+      const listboxId = el.getAttribute('aria-controls');
+      if (listboxId) {
+        const options = document.querySelectorAll(`#${listboxId} .ant-select-item-option-content`);
+        for (const opt of Array.from(options)) {
+          if ((opt.textContent || '').trim().toLowerCase() === value.toLowerCase()) {
+            (opt.parentElement as HTMLElement).click();
+            optionClicked = true;
+            break;
+          }
+        }
+      }
+      
+      if (!optionClicked) {
+        const allOptions = document.querySelectorAll('.ant-select-dropdown:not(.ant-select-dropdown-hidden) .ant-select-item-option-content');
+        for (const opt of Array.from(allOptions)) {
+          if ((opt.textContent || '').trim().toLowerCase() === value.toLowerCase()) {
+            (opt.parentElement as HTMLElement).click();
+            optionClicked = true;
+            break;
+          }
+        }
+      }
+      optRetries++;
+    }
+    
+    if (!optionClicked) {
+      console.warn("Could not find option to click for:", selector, value);
+    }
+    
+    el.dispatchEvent(new Event('blur', { bubbles: true }));
+    await new Promise(r => setTimeout(r, 100));
+  } else {
+    el.value = value;
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    el.dispatchEvent(new Event('blur', { bubbles: true }));
+  }
+}
+
+function formatDate(isoDate: string | null | undefined): string {
+  if (!isoDate) return '';
+  const parts = isoDate.split('-');
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  }
+  return isoDate;
 }
 
 async function handlePhotoUploadByElement(url: string, input: HTMLInputElement) {
@@ -185,11 +268,56 @@ async function fillForm() {
         if (!popupInterval) popupInterval = setInterval(handleBlockingPopup, 1000);
 
         try {
-          // Fill Text Fields
-          fillInput('input[name="surname"], input[id*="surname" i], input[id*="lastname" i]', pendingApp.lastName)
-          fillInput('input[name="givenName"], input[id*="givenname" i], input[id*="firstname" i]', pendingApp.firstName)
-          fillInput('input[name="arrivalDate"], input[id*="arrivaldate" i]', pendingApp.arrivalDate)
+          // Personal
+          // (First and Last name are filled automatically by government site via image upload)
+          // await autoFill('#basic_ttcnHo', pendingApp.lastName);
+          // await autoFill('#basic_ttcnDemVaTen', pendingApp.firstName);
+          await autoFill('#basic_ttcnEmail', pendingApp.email);
+          await autoFill('#basic_ttcnConfirmEmail', pendingApp.email);
+          await autoFill('#basic_ttcnTonGiao', pendingApp.religion);
+          await autoFill('#basic_ttcnNoiSinh', pendingApp.placeOfBirth);
 
+          // Passport
+          await autoFill('#basic_hcLoai', pendingApp.passportType);
+          await autoFill('#basic_hcNgayCapStr', formatDate(pendingApp.passportIssueDate));
+          await autoFill('#basic_hcGiaTriDenStr', formatDate(pendingApp.passportExpiryDate));
+          await autoFill('#basic_nddnTtdtTuNgayStr', formatDate(pendingApp.visaValidFrom));
+          
+          let validToDate = '';
+          const fromDateStr = pendingApp.visaValidFrom || pendingApp.arrivalDate;
+          if (fromDateStr) {
+            const parts = fromDateStr.split('-');
+            if (parts.length === 3) {
+              const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+              d.setDate(d.getDate() + 87);
+              validToDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            }
+          }
+          await autoFill('#basic_nddnTtdtDenNgayStr', formatDate(validToDate));
+
+          // Addresses
+          await autoFill('#basic_ttllDcThuongTru', pendingApp.permanentAddress);
+          await autoFill('#basic_ttllDcLienHe', pendingApp.contactAddress);
+          await autoFill('#basic_ttllSdt', pendingApp.telephone);
+
+          // Emergency Contact
+          await autoFill('#basic_ttllLlHoTen', pendingApp.emergencyName);
+          await autoFill('#basic_ttllLlNoiOHienTai', pendingApp.emergencyAddress);
+          await autoFill('#basic_ttllLlSdt', pendingApp.emergencyTelephone);
+          await autoFill('#basic_ttllLlQuanHe', pendingApp.emergencyRelationship);
+
+          // Trip Info
+          await autoFill('#basic_ttcdMucDich', pendingApp.purposeOfEntry);
+          await autoFill('#basic_ttcdThoiGianNcStr', formatDate(pendingApp.intendedDateOfEntry || pendingApp.arrivalDate));
+          await autoFill('#basic_ttcdSoNgayTamTru', pendingApp.intendedLengthOfStay);
+          await autoFill('#basic_ttcdDcTamTru', pendingApp.residentialAddressInVietnam);
+          await autoFill('#basic_ttcdTinhTp', pendingApp.provinceCity);
+          await new Promise(r => setTimeout(r, 500));
+          await autoFill('#basic_ttcdPhuongXa', pendingApp.wardCommune);
+          await autoFill('#basic_ttcdNcCuaKhau', pendingApp.entryGate);
+          await new Promise(r => setTimeout(r, 800));
+          await autoFill('#basic_ttcdXcCuaKhau', pendingApp.exitGate, 'Intended border gate of exit');
+          await new Promise(r => setTimeout(r, 500));
           // Upload Photos
           const fileInputs = Array.from(document.querySelectorAll('input[type="file"]')) as HTMLInputElement[];
           let portraitInput: HTMLInputElement | null = null;
@@ -215,6 +343,19 @@ async function fillForm() {
             await handlePhotoUploadByElement(pendingApp.passportSignedUrl, passportInput)
           } else {
             console.warn("Could not find file input for passport photo");
+          }
+
+          // Check confirmation checkboxes at the bottom of the form
+          const formCheckboxes = document.querySelectorAll('.ant-checkbox-wrapper, label.ant-checkbox-wrapper');
+          for (const wrapper of Array.from(formCheckboxes)) {
+            const text = (wrapper as HTMLElement).innerText || wrapper.textContent || '';
+            const lowerText = text.toLowerCase();
+            if (lowerText.includes('i hereby declare') || lowerText.includes('vietnamese laws') || lowerText.includes('above statements are true') || lowerText.includes('committed to declare')) {
+              const isChecked = wrapper.querySelector('.ant-checkbox-checked') !== null;
+              if (!isChecked) {
+                (wrapper as HTMLElement).click();
+              }
+            }
           }
 
           alert("Form filled — please review and submit.")

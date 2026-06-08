@@ -69,7 +69,38 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
    * Uses optimistic update — rolls back on failure (AC-8).
    */
   const handleCreateDataConfirm = async () => {
-    // Optimistic update: immediately reflect Ready status in the cache
+    const mockData = {
+      religion: application.religion || 'No',
+      placeOfBirth: application.placeOfBirth || 'Same as nationality',
+      visaValidFrom: application.visaValidFrom || application.arrivalDate || '',
+      passportType: application.passportType || 'Ordinary passport',
+      passportExpiryDate: application.passportExpiryDate || '',
+      passportIssueDate: application.passportIssueDate || '',
+      permanentAddress: application.permanentAddress || '2568 Park Ave, Bronx, NY 10451, United State',
+      contactAddress: application.contactAddress || '2568 Park Ave, Bronx, NY 10451, United State',
+      telephone: application.telephone || '19295265900',
+      emergencyName: application.emergencyName || 'WILLIAM BALACHANDAR',
+      emergencyAddress: application.emergencyAddress || '2568 Park Ave, Bronx, NY 10451, United State',
+      emergencyTelephone: application.emergencyTelephone || '19295265900',
+      emergencyRelationship: application.emergencyRelationship || 'Dad',
+      purposeOfEntry: application.purposeOfEntry || 'Tourist',
+      intendedDateOfEntry: application.intendedDateOfEntry || application.visaValidFrom || application.arrivalDate || '',
+      intendedLengthOfStay: application.intendedLengthOfStay || '30',
+      residentialAddressInVietnam: application.residentialAddressInVietnam || '39 Hàng Bài, Hoàn Kiếm, Hà Nội',
+      provinceCity: application.provinceCity || 'Ha Noi City',
+      wardCommune: application.wardCommune || 'HOAN KIEM WARD',
+      entryGate: application.entryGate || 'Noi Bai Int Airport',
+      exitGate: application.exitGate || 'Noi Bai Int Airport',
+    };
+
+    if (mockData.passportExpiryDate && !mockData.passportIssueDate) {
+      const parts = mockData.passportExpiryDate.split('-');
+      if (parts.length === 3) {
+        mockData.passportIssueDate = `${parseInt(parts[0], 10) - 10}-${parts[1]}-${parts[2]}`;
+      }
+    }
+
+    // Optimistic update: immediately reflect mock data and Ready status in the cache
     const previousData = queryClient.getQueryData<ApplicationData>([
       'applications',
       application.id,
@@ -77,13 +108,26 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
 
     queryClient.setQueryData<ApplicationData>(['applications', application.id], (old: ApplicationData | undefined) => {
       if (!old) return old
-      return { ...old, status: 'ready' }
+      return { ...old, ...mockData, status: 'ready' }
     })
 
     // Close modal immediately (optimistic UX)
     setCreateDataOpen(false)
 
     try {
+      // 1. Update the application data
+      const dataRes = await fetch(`/api/applications/${application.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mockData),
+      })
+      
+      const dataJson = await dataRes.json()
+      if (!dataRes.ok || dataJson.error) {
+        throw new Error(dataJson.error?.message ?? 'Failed to create data')
+      }
+
+      // 2. Update the status
       const res = await fetch(`/api/applications/${application.id}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -96,14 +140,13 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
         throw new Error(json.error?.message ?? 'Failed to update status')
       }
 
-      // Invalidate to ensure server state is consistent (AC-9: updated_at recorded)
+      // Invalidate to ensure server state is consistent
       await queryClient.invalidateQueries({ queryKey: ['applications'] })
     } catch {
-      // AC-8: Roll back optimistic update on failure
+      // Roll back optimistic update on failure
       queryClient.setQueryData(['applications', application.id], previousData)
 
-      // AC-8: Persistent error toast
-      toast.error('Failed to update status — please try again.', {
+      toast.error('Failed to create data and update status — please try again.', {
         duration: Infinity,
       })
     }
@@ -283,7 +326,7 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
       </div>
 
       {/* Field grid */}
-      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5 rounded-lg border border-border p-6 bg-white">
+      <dl className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-5 rounded-lg border border-border p-6 bg-white">
         <div>
           <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Last Name
@@ -313,6 +356,132 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
           <dd className="mt-1 text-sm text-foreground">
             {formatArrivalDate(application.arrivalDate)}
           </dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Religion
+          </dt>
+          <dd className="mt-1 text-sm text-foreground">{application.religion || '-'}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Place of Birth
+          </dt>
+          <dd className="mt-1 text-sm text-foreground">{application.placeOfBirth || '-'}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Visa Valid From
+          </dt>
+          <dd className="mt-1 text-sm text-foreground">{formatArrivalDate(application.visaValidFrom)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Passport Type
+          </dt>
+          <dd className="mt-1 text-sm text-foreground">{application.passportType || '-'}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Passport Expiry Date
+          </dt>
+          <dd className="mt-1 text-sm text-foreground">{formatArrivalDate(application.passportExpiryDate)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Passport Issue Date
+          </dt>
+          <dd className="mt-1 text-sm text-foreground">{formatArrivalDate(application.passportIssueDate)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Permanent Address
+          </dt>
+          <dd className="mt-1 text-sm text-foreground">{application.permanentAddress || '-'}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Contact Address
+          </dt>
+          <dd className="mt-1 text-sm text-foreground">{application.contactAddress || '-'}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Telephone
+          </dt>
+          <dd className="mt-1 text-sm text-foreground">{application.telephone || '-'}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Emergency Contact Name
+          </dt>
+          <dd className="mt-1 text-sm text-foreground">{application.emergencyName || '-'}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Emergency Contact Address
+          </dt>
+          <dd className="mt-1 text-sm text-foreground">{application.emergencyAddress || '-'}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Emergency Telephone
+          </dt>
+          <dd className="mt-1 text-sm text-foreground">{application.emergencyTelephone || '-'}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Emergency Relationship
+          </dt>
+          <dd className="mt-1 text-sm text-foreground">{application.emergencyRelationship || '-'}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Purpose of Entry
+          </dt>
+          <dd className="mt-1 text-sm text-foreground">{application.purposeOfEntry || '-'}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Intended Date of Entry
+          </dt>
+          <dd className="mt-1 text-sm text-foreground">{formatArrivalDate(application.intendedDateOfEntry)}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Length of Stay
+          </dt>
+          <dd className="mt-1 text-sm text-foreground">{application.intendedLengthOfStay || '-'}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Residential Addr VN
+          </dt>
+          <dd className="mt-1 text-sm text-foreground">{application.residentialAddressInVietnam || '-'}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Province/City VN
+          </dt>
+          <dd className="mt-1 text-sm text-foreground">{application.provinceCity || '-'}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Ward/Commune VN
+          </dt>
+          <dd className="mt-1 text-sm text-foreground">{application.wardCommune || '-'}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Intended Gate of Entry
+          </dt>
+          <dd className="mt-1 text-sm text-foreground">{application.entryGate || '-'}</dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Intended Gate of Exit
+          </dt>
+          <dd className="mt-1 text-sm text-foreground">{application.exitGate || '-'}</dd>
         </div>
         <div>
           <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
@@ -365,9 +534,31 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
               appId: application.appId,
               lastName: application.lastName,
               firstName: application.firstName,
+              email: application.email,
               arrivalDate: application.arrivalDate,
               portraitSignedUrl: signedUrlsData?.portraitSignedUrl ?? null,
               passportSignedUrl: signedUrlsData?.passportSignedUrl ?? null,
+              religion: application.religion,
+              placeOfBirth: application.placeOfBirth,
+              visaValidFrom: application.visaValidFrom,
+              passportType: application.passportType,
+              passportExpiryDate: application.passportExpiryDate,
+              passportIssueDate: application.passportIssueDate,
+              permanentAddress: application.permanentAddress,
+              contactAddress: application.contactAddress,
+              telephone: application.telephone,
+              emergencyName: application.emergencyName,
+              emergencyAddress: application.emergencyAddress,
+              emergencyTelephone: application.emergencyTelephone,
+              emergencyRelationship: application.emergencyRelationship,
+              purposeOfEntry: application.purposeOfEntry,
+              intendedDateOfEntry: application.intendedDateOfEntry,
+              intendedLengthOfStay: application.intendedLengthOfStay,
+              residentialAddressInVietnam: application.residentialAddressInVietnam,
+              provinceCity: application.provinceCity,
+              wardCommune: application.wardCommune,
+              entryGate: application.entryGate,
+              exitGate: application.exitGate,
             }
 
             try {

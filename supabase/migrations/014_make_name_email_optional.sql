@@ -1,0 +1,3 @@
+ALTER TABLE applications ALTER COLUMN last_name DROP NOT NULL;
+ALTER TABLE applications ALTER COLUMN first_name DROP NOT NULL;
+ALTER TABLE applications ALTER COLUMN email DROP NOT NULL;

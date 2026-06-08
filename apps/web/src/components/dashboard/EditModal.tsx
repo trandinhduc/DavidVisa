@@ -25,6 +25,27 @@ interface EditFormState {
   firstName: string
   email: string
   arrivalDate: string
+  religion: string
+  placeOfBirth: string
+  visaValidFrom: string
+  passportType: string
+  passportExpiryDate: string
+  passportIssueDate: string
+  permanentAddress: string
+  contactAddress: string
+  telephone: string
+  emergencyName: string
+  emergencyAddress: string
+  emergencyTelephone: string
+  emergencyRelationship: string
+  purposeOfEntry: string
+  intendedDateOfEntry: string
+  intendedLengthOfStay: string
+  residentialAddressInVietnam: string
+  provinceCity: string
+  wardCommune: string
+  entryGate: string
+  exitGate: string
   portraitFile: File | null
   passportFile: File | null
 }
@@ -35,10 +56,31 @@ export function EditModal({ application, open, onOpenChange }: EditModalProps) {
   const [saveError, setSaveError] = useState<string | null>(null)
 
   const [form, setForm] = useState<EditFormState>({
-    lastName: application.lastName,
-    firstName: application.firstName,
-    email: application.email,
+    lastName: application.lastName || '',
+    firstName: application.firstName || '',
+    email: application.email || '',
     arrivalDate: application.arrivalDate,
+    religion: application.religion || 'No',
+    placeOfBirth: application.placeOfBirth || 'Same as nationality',
+    visaValidFrom: application.visaValidFrom || application.arrivalDate || '',
+    passportType: application.passportType || 'Ordinary passport',
+    passportExpiryDate: application.passportExpiryDate || '',
+    passportIssueDate: application.passportIssueDate || '',
+    permanentAddress: application.permanentAddress || '2568 Park Ave, Bronx, NY 10451, United State',
+    contactAddress: application.contactAddress || '2568 Park Ave, Bronx, NY 10451, United State',
+    telephone: application.telephone || '19295265900',
+    emergencyName: application.emergencyName || 'WILLIAM BALACHANDAR',
+    emergencyAddress: application.emergencyAddress || '2568 Park Ave, Bronx, NY 10451, United State',
+    emergencyTelephone: application.emergencyTelephone || '19295265900',
+    emergencyRelationship: application.emergencyRelationship || 'Dad',
+    purposeOfEntry: application.purposeOfEntry || 'Tourist',
+    intendedDateOfEntry: application.intendedDateOfEntry || application.visaValidFrom || application.arrivalDate || '',
+    intendedLengthOfStay: application.intendedLengthOfStay || '30',
+    residentialAddressInVietnam: application.residentialAddressInVietnam || '39 Hàng Bài, Hoàn Kiếm, Hà Nội',
+    provinceCity: application.provinceCity || 'Ha Noi City',
+    wardCommune: application.wardCommune || 'HOAN KIEM WARD',
+    entryGate: application.entryGate || 'Noi Bai Int Airport',
+    exitGate: application.exitGate || 'Noi Bai Int Airport',
     portraitFile: null,
     passportFile: null,
   })
@@ -47,10 +89,31 @@ export function EditModal({ application, open, onOpenChange }: EditModalProps) {
   const handleOpenChange = (isOpen: boolean) => {
     if (isOpen) {
       setForm({
-        lastName: application.lastName,
-        firstName: application.firstName,
-        email: application.email,
+        lastName: application.lastName || '',
+        firstName: application.firstName || '',
+        email: application.email || '',
         arrivalDate: application.arrivalDate,
+        religion: application.religion || 'No',
+        placeOfBirth: application.placeOfBirth || 'Same as nationality',
+        visaValidFrom: application.visaValidFrom || application.arrivalDate || '',
+        passportType: application.passportType || 'Ordinary passport',
+        passportExpiryDate: application.passportExpiryDate || '',
+        passportIssueDate: application.passportIssueDate || '',
+        permanentAddress: application.permanentAddress || '2568 Park Ave, Bronx, NY 10451, United State',
+        contactAddress: application.contactAddress || '2568 Park Ave, Bronx, NY 10451, United State',
+        telephone: application.telephone || '19295265900',
+        emergencyName: application.emergencyName || 'WILLIAM BALACHANDAR',
+        emergencyAddress: application.emergencyAddress || '2568 Park Ave, Bronx, NY 10451, United State',
+        emergencyTelephone: application.emergencyTelephone || '19295265900',
+        emergencyRelationship: application.emergencyRelationship || 'Dad',
+        purposeOfEntry: application.purposeOfEntry || 'Tourist',
+        intendedDateOfEntry: application.intendedDateOfEntry || application.visaValidFrom || application.arrivalDate || '',
+        intendedLengthOfStay: application.intendedLengthOfStay || '30',
+        residentialAddressInVietnam: application.residentialAddressInVietnam || '39 Hàng Bài, Hoàn Kiếm, Hà Nội',
+        provinceCity: application.provinceCity || 'Ha Noi City',
+        wardCommune: application.wardCommune || 'HOAN KIEM WARD',
+        entryGate: application.entryGate || 'Noi Bai Int Airport',
+        exitGate: application.exitGate || 'Noi Bai Int Airport',
         portraitFile: null,
         passportFile: null,
       })
@@ -94,6 +157,27 @@ export function EditModal({ application, open, onOpenChange }: EditModalProps) {
           firstName: form.firstName,
           email: form.email,
           arrivalDate: form.arrivalDate,
+          religion: form.religion,
+          placeOfBirth: form.placeOfBirth,
+          visaValidFrom: form.visaValidFrom,
+          passportType: form.passportType,
+          passportExpiryDate: form.passportExpiryDate,
+          passportIssueDate: form.passportIssueDate,
+          permanentAddress: form.permanentAddress,
+          contactAddress: form.contactAddress,
+          telephone: form.telephone,
+          emergencyName: form.emergencyName,
+          emergencyAddress: form.emergencyAddress,
+          emergencyTelephone: form.emergencyTelephone,
+          emergencyRelationship: form.emergencyRelationship,
+          purposeOfEntry: form.purposeOfEntry,
+          intendedDateOfEntry: form.intendedDateOfEntry,
+          intendedLengthOfStay: form.intendedLengthOfStay,
+          residentialAddressInVietnam: form.residentialAddressInVietnam,
+          provinceCity: form.provinceCity,
+          wardCommune: form.wardCommune,
+          entryGate: form.entryGate,
+          exitGate: form.exitGate,
         }),
       })
 
@@ -123,7 +207,7 @@ export function EditModal({ application, open, onOpenChange }: EditModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-xl max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Application</DialogTitle>
         </DialogHeader>
@@ -170,6 +254,248 @@ export function EditModal({ application, open, onOpenChange }: EditModalProps) {
               onChange={(e) => setForm((prev) => ({ ...prev, arrivalDate: e.target.value }))}
               disabled={isSaving}
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-religion">Religion</Label>
+              <Input
+                id="edit-religion"
+                value={form.religion}
+                onChange={(e) => setForm((prev) => ({ ...prev, religion: e.target.value }))}
+                disabled={isSaving}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-place-of-birth">Place of Birth</Label>
+              <Input
+                id="edit-place-of-birth"
+                value={form.placeOfBirth}
+                onChange={(e) => setForm((prev) => ({ ...prev, placeOfBirth: e.target.value }))}
+                disabled={isSaving}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-visa-valid-from">Grant e-Visa valid from</Label>
+            <Input
+              id="edit-visa-valid-from"
+              type="date"
+              value={form.visaValidFrom}
+              onChange={(e) => setForm((prev) => ({ 
+                ...prev, 
+                visaValidFrom: e.target.value,
+                intendedDateOfEntry: e.target.value
+              }))}
+              disabled={isSaving}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-passport-type">Passport Type</Label>
+              <Input
+                id="edit-passport-type"
+                value={form.passportType}
+                onChange={(e) => setForm((prev) => ({ ...prev, passportType: e.target.value }))}
+                disabled={isSaving}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-passport-expiry-date">Passport Expiry Date</Label>
+              <Input
+                id="edit-passport-expiry-date"
+                type="date"
+                value={form.passportExpiryDate}
+                onChange={(e) => setForm((prev) => {
+                  const val = e.target.value;
+                  const parts = val.split('-');
+                  const issue = parts.length === 3 && val ? `${parseInt(parts[0], 10) - 10}-${parts[1]}-${parts[2]}` : prev.passportIssueDate;
+                  return { ...prev, passportExpiryDate: val, passportIssueDate: issue };
+                })}
+                disabled={isSaving}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-passport-issue-date">Passport Issue Date</Label>
+              <Input
+                id="edit-passport-issue-date"
+                type="date"
+                value={form.passportIssueDate}
+                onChange={(e) => setForm((prev) => ({ ...prev, passportIssueDate: e.target.value }))}
+                disabled={isSaving}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-permanent-address">Permanent residential address</Label>
+            <Input
+              id="edit-permanent-address"
+              value={form.permanentAddress}
+              onChange={(e) => setForm((prev) => ({ ...prev, permanentAddress: e.target.value }))}
+              disabled={isSaving}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-contact-address">Contact address</Label>
+              <Input
+                id="edit-contact-address"
+                value={form.contactAddress}
+                onChange={(e) => setForm((prev) => ({ ...prev, contactAddress: e.target.value }))}
+                disabled={isSaving}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-telephone">Telephone number</Label>
+              <Input
+                id="edit-telephone"
+                value={form.telephone}
+                onChange={(e) => setForm((prev) => ({ ...prev, telephone: e.target.value }))}
+                disabled={isSaving}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5 pt-4 border-t">
+            <h4 className="text-sm font-medium">Emergency Contact</h4>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-emergency-name">Full name</Label>
+              <Input
+                id="edit-emergency-name"
+                value={form.emergencyName}
+                onChange={(e) => setForm((prev) => ({ ...prev, emergencyName: e.target.value }))}
+                disabled={isSaving}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-emergency-relationship">Relationship</Label>
+              <Input
+                id="edit-emergency-relationship"
+                value={form.emergencyRelationship}
+                onChange={(e) => setForm((prev) => ({ ...prev, emergencyRelationship: e.target.value }))}
+                disabled={isSaving}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-emergency-address">Current residential address</Label>
+              <Input
+                id="edit-emergency-address"
+                value={form.emergencyAddress}
+                onChange={(e) => setForm((prev) => ({ ...prev, emergencyAddress: e.target.value }))}
+                disabled={isSaving}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-emergency-telephone">Telephone number</Label>
+              <Input
+                id="edit-emergency-telephone"
+                value={form.emergencyTelephone}
+                onChange={(e) => setForm((prev) => ({ ...prev, emergencyTelephone: e.target.value }))}
+                disabled={isSaving}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5 pt-4 border-t">
+            <h4 className="text-sm font-medium">Information About The Trip</h4>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-purpose-of-entry">Purpose of entry</Label>
+            <Input
+              id="edit-purpose-of-entry"
+              placeholder="Tourist, Business, etc."
+              value={form.purposeOfEntry}
+              onChange={(e) => setForm((prev) => ({ ...prev, purposeOfEntry: e.target.value }))}
+              disabled={isSaving}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-intended-date">Intended date of entry</Label>
+              <Input
+                id="edit-intended-date"
+                type="date"
+                value={form.intendedDateOfEntry}
+                onChange={(e) => setForm((prev) => ({ ...prev, intendedDateOfEntry: e.target.value }))}
+                disabled={isSaving}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-intended-length">Intended length of stay</Label>
+              <Input
+                id="edit-intended-length"
+                value={form.intendedLengthOfStay}
+                onChange={(e) => setForm((prev) => ({ ...prev, intendedLengthOfStay: e.target.value }))}
+                disabled={isSaving}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="edit-residential-address-vn">Residential address in VietNam</Label>
+            <Input
+              id="edit-residential-address-vn"
+              value={form.residentialAddressInVietnam}
+              onChange={(e) => setForm((prev) => ({ ...prev, residentialAddressInVietnam: e.target.value }))}
+              disabled={isSaving}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-province">Province/city</Label>
+              <Input
+                id="edit-province"
+                value={form.provinceCity}
+                onChange={(e) => setForm((prev) => ({ ...prev, provinceCity: e.target.value }))}
+                disabled={isSaving}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-ward">Ward / commune</Label>
+              <Input
+                id="edit-ward"
+                value={form.wardCommune}
+                onChange={(e) => setForm((prev) => ({ ...prev, wardCommune: e.target.value }))}
+                disabled={isSaving}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-entry-gate">Intended border gate of entry</Label>
+              <Input
+                id="edit-entry-gate"
+                value={form.entryGate}
+                onChange={(e) => setForm((prev) => ({ ...prev, entryGate: e.target.value }))}
+                disabled={isSaving}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-exit-gate">Intended border gate of exit</Label>
+              <Input
+                id="edit-exit-gate"
+                value={form.exitGate}
+                onChange={(e) => setForm((prev) => ({ ...prev, exitGate: e.target.value }))}
+                disabled={isSaving}
+              />
+            </div>
           </div>
 
           <div className="space-y-1.5">

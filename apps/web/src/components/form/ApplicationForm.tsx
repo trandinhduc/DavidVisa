@@ -32,10 +32,9 @@ export default function ApplicationForm() {
     resolver: zodResolver(applicationFormSchema),
     mode: 'onBlur',
     defaultValues: {
-      lastName: '',
-      firstName: '',
       email: '',
       arrivalDate: null,
+      passportExpiryDate: null,
       portraitPhoto: null,
       passportPhoto: null,
     }
@@ -73,10 +72,13 @@ export default function ApplicationForm() {
 
       // 2. Prepare FormData
       const formData = new FormData()
-      formData.append('lastName', data.lastName)
-      formData.append('firstName', data.firstName)
-      formData.append('email', data.email)
+      if (data.lastName) formData.append('lastName', data.lastName)
+      if (data.firstName) formData.append('firstName', data.firstName)
+      if (data.email) formData.append('email', data.email)
       formData.append('arrivalDate', data.arrivalDate as string)
+      if (data.passportExpiryDate) {
+        formData.append('passportExpiryDate', data.passportExpiryDate as string)
+      }
       formData.append('portraitPhoto', data.portraitPhoto as File)
       formData.append('passportPhoto', data.passportPhoto as File)
       formData.append('recaptchaToken', token!)
@@ -110,45 +112,11 @@ export default function ApplicationForm() {
 
   return (
     <form noValidate onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {/* Last Name */}
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="lastName">Last Name (Family Name) <span className="text-destructive ml-1">*</span></Label>
-          <Input
-            id="lastName"
-            placeholder="e.g. Rodriguez"
-            aria-describedby={errors.lastName ? 'lastName-error' : undefined}
-            className={cn("h-11", errors.lastName && 'border-destructive')}
-            {...register('lastName')}
-          />
-          {errors.lastName && (
-            <p id="lastName-error" role="alert" className="text-xs text-destructive mt-1">
-              {errors.lastName.message}
-            </p>
-          )}
-        </div>
-
-        {/* First Name */}
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="firstName">First Name (Given Name) <span className="text-destructive ml-1">*</span></Label>
-          <Input
-            id="firstName"
-            placeholder="e.g. Carlos"
-            aria-describedby={errors.firstName ? 'firstName-error' : undefined}
-            className={cn("h-11", errors.firstName && 'border-destructive')}
-            {...register('firstName')}
-          />
-          {errors.firstName && (
-            <p id="firstName-error" role="alert" className="text-xs text-destructive mt-1">
-              {errors.firstName.message}
-            </p>
-          )}
-        </div>
-      </div>
+      {/* First/Last name removed as per requirement */}
 
       {/* Email Address */}
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="email">Email Address <span className="text-destructive ml-1">*</span></Label>
+        <Label htmlFor="email">Email Address</Label>
         <Input
           id="email"
           type="email"
@@ -177,6 +145,23 @@ export default function ApplicationForm() {
             onBlur={field.onBlur}
             error={errors.arrivalDate?.message}
             aria-describedby={errors.arrivalDate ? 'arrivalDate-error' : undefined}
+          />
+        )}
+      />
+
+      {/* Passport Expiry Date */}
+      <Controller
+        control={control}
+        name="passportExpiryDate"
+        render={({ field }) => (
+          <DateInput
+            id="passportExpiryDate"
+            label={<span>Passport Expiry Date <span className="text-destructive ml-1">*</span></span>}
+            value={field.value || null}
+            onChange={field.onChange}
+            onBlur={field.onBlur}
+            error={errors.passportExpiryDate?.message}
+            aria-describedby={errors.passportExpiryDate ? 'passportExpiryDate-error' : undefined}
           />
         )}
       />

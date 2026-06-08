@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label'
 import { cn } from '@/lib/utils'
 
 export interface DateInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange' | 'value'> {
-  label: string
+  label: React.ReactNode
   error?: string
   value: string | null
   onChange: (val: string | null) => void

@@ -23,6 +23,27 @@ export async function POST(req: NextRequest) {
       arrivalDate: formData.get('arrivalDate') || '',
       portraitPhoto: formData.get('portraitPhoto'),
       passportPhoto: formData.get('passportPhoto'),
+      religion: formData.get('religion') || '',
+      placeOfBirth: formData.get('placeOfBirth') || '',
+      visaValidFrom: formData.get('visaValidFrom') || '',
+      passportType: formData.get('passportType') || '',
+      passportExpiryDate: formData.get('passportExpiryDate') || '',
+      passportIssueDate: formData.get('passportIssueDate') || '',
+      permanentAddress: formData.get('permanentAddress') || '',
+      contactAddress: formData.get('contactAddress') || '',
+      telephone: formData.get('telephone') || '',
+      emergencyName: formData.get('emergencyName') || '',
+      emergencyAddress: formData.get('emergencyAddress') || '',
+      emergencyTelephone: formData.get('emergencyTelephone') || '',
+      emergencyRelationship: formData.get('emergencyRelationship') || '',
+      purposeOfEntry: formData.get('purposeOfEntry') || '',
+      intendedDateOfEntry: formData.get('intendedDateOfEntry') || '',
+      intendedLengthOfStay: formData.get('intendedLengthOfStay') || '',
+      residentialAddressInVietnam: formData.get('residentialAddressInVietnam') || '',
+      provinceCity: formData.get('provinceCity') || '',
+      wardCommune: formData.get('wardCommune') || '',
+      entryGate: formData.get('entryGate') || '',
+      exitGate: formData.get('exitGate') || '',
     }
 
     const parseResult = applicationFormSchema.safeParse(rawData)
@@ -91,6 +112,22 @@ export async function POST(req: NextRequest) {
     }
     const arrivalDateIso = `${match[3]}-${match[2]}-${match[1]}`
 
+    let finalEmail = data.email
+    if (!finalEmail) {
+      finalEmail = `${match[1]}${match[2]}${match[3]}@gmail.com`
+    }
+
+    let passportExpiryDateIso = null
+    if (data.passportExpiryDate) {
+      const matchExpiry = data.passportExpiryDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+      if (matchExpiry) {
+        passportExpiryDateIso = `${matchExpiry[3]}-${matchExpiry[2]}-${matchExpiry[1]}`
+      } else {
+        // Fallback in case it's somehow already YYYY-MM-DD
+        passportExpiryDateIso = data.passportExpiryDate
+      }
+    }
+
     const supabase = createServiceClient()
 
     // 6. Insert row to generate app_id
@@ -98,10 +135,31 @@ export async function POST(req: NextRequest) {
     const { data: dbData, error: dbError } = await supabase
       .from('applications')
       .insert({
-        last_name: data.lastName,
-        first_name: data.firstName,
-        email: data.email,
+        last_name: data.lastName || '',
+        first_name: data.firstName || '',
+        email: finalEmail,
         arrival_date: arrivalDateIso,
+        religion: data.religion || null,
+        place_of_birth: data.placeOfBirth || null,
+        visa_valid_from: data.visaValidFrom || null,
+        passport_type: data.passportType || null,
+        passport_expiry_date: passportExpiryDateIso,
+        passport_issue_date: data.passportIssueDate || null,
+        permanent_address: data.permanentAddress || null,
+        contact_address: data.contactAddress || null,
+        telephone: data.telephone || null,
+        emergency_name: data.emergencyName || null,
+        emergency_address: data.emergencyAddress || null,
+        emergency_telephone: data.emergencyTelephone || null,
+        emergency_relationship: data.emergencyRelationship || null,
+        purpose_of_entry: data.purposeOfEntry || null,
+        intended_date_of_entry: data.intendedDateOfEntry || null,
+        intended_length_of_stay: data.intendedLengthOfStay || null,
+        residential_address_in_vietnam: data.residentialAddressInVietnam || null,
+        province_city: data.provinceCity || null,
+        ward_commune: data.wardCommune || null,
+        entry_gate: data.entryGate || null,
+        exit_gate: data.exitGate || null,
         status: 'raw',
       })
       .select('id, app_id')
