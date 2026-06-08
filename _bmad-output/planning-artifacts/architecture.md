@@ -262,7 +262,9 @@ interface PushToEvisaMessage {
 
 // Extension MUST verify sender origin before processing
 chrome.runtime.onMessageExternal.addListener((msg, sender) => {
-  if (sender.origin !== 'https://david-agency.vercel.app') return
+  const isLocalhost = sender.origin?.startsWith("http://localhost")
+  const isVercel = sender.origin === "https://visa-agency-ivory.vercel.app" || sender.origin?.endsWith(".vercel.app")
+  if (!isLocalhost && !isVercel) return
 })
 ```
 

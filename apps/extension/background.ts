@@ -5,14 +5,12 @@ const storage = new Storage()
 
 chrome.runtime.onMessageExternal.addListener(
   (message: ExtensionMessage, sender, sendResponse) => {
-    // Determine allowed origin based on environment
-    const allowedOrigin =
-      process.env.NODE_ENV === "development"
-        ? "http://localhost:3000"
-        : "https://david-agency.vercel.app"
+    const isLocalhost = sender.origin?.startsWith("http://localhost")
+    const isVercel = sender.origin === "https://visa-agency-ivory.vercel.app" || sender.origin?.endsWith(".vercel.app")
 
-    if (sender.origin !== allowedOrigin) {
+    if (!isLocalhost && !isVercel) {
       console.warn("Ignored message from unauthorized origin:", sender.origin)
+      sendResponse({ success: false, error: "Unauthorized origin" })
       return false
     }
 

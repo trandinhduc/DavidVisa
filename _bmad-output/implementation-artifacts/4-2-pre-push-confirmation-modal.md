@@ -4,7 +4,7 @@ baseline_commit: 83a6e7ed8f6a5d671af3d1adebd3f73b14446d8c
 
 # Story 4.2: Pre-Push Confirmation Modal
 
-Status: review
+Status: done
 
 ## Story
 

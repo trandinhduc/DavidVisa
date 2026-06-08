@@ -92,7 +92,7 @@ NFR-12: (Resilience) Manual Export fallback button trên Dashboard để Richard
 - AR-3: Supabase schema: bảng applications (với app_id sequence DA-YYYY-XXXX), notification_logs, RLS policies, private storage bucket — phải finalized trước khi viết RLS policies.
 - AR-4: API routes theo pattern: POST /api/applications (anon + reCAPTCHA), GET/PUT /api/applications/[id] (Service Role), PUT /api/applications/[id]/status, GET /api/applications/[id]/signed-urls.
 - AR-5: API response format bắt buộc: { data: {...}, error: null } hoặc { data: null, error: { message, code } }. HTTP: 200/400/401/404/500.
-- AR-6: Extension ↔ Dashboard communication: chrome.runtime.sendMessage với origin verification bắt buộc (sender.origin === 'https://david-agency.vercel.app'). Storage: chrome.storage.local.
+- AR-6: Extension ↔ Dashboard communication: chrome.runtime.sendMessage với origin verification bắt buộc (sender.origin === 'https://visa-agency-ivory.vercel.app'). Storage: chrome.storage.local.
 - AR-7: Naming conventions bắt buộc: snake_case DB columns, camelCase JSON/TypeScript, kebab-case API routes, PascalCase components, kebab-case utility files.
 - AR-8: Date format rules: Database = ISO date string, API JSON = ISO string, Form input = DD/MM/YYYY, UI display = human-readable "Month Day, Year".
 - AR-9: Storage paths: {app_id}/portrait.jpg và {app_id}/passport.jpg — luôn dùng Signed URL, không bao giờ expose path.
@@ -521,7 +521,7 @@ So that it has all the information it needs to auto-fill evisa.gov.vn accurately
 **When** the operator confirms "Push to eVisa" in the modal
 **Then** the Dashboard sends a `PushToEvisaMessage` via `chrome.runtime.sendMessage(EXTENSION_ID, message)` — EXTENSION_ID imported from `packages/shared/src/constants.ts`
 **And** the message contains: `type: 'PUSH_TO_EVISA'`, `applicationId`, `appId`, `lastName`, `firstName`, `arrivalDate`, `portraitSignedUrl`, `passportSignedUrl` (fresh signed URLs, 1 hour expiry)
-**And** `background.ts` listens via `chrome.runtime.onMessageExternal.addListener` and verifies `sender.origin === 'https://david-agency.vercel.app'` before processing — messages from other origins are silently ignored
+**And** `background.ts` listens via `chrome.runtime.onMessageExternal.addListener` and verifies `sender.origin === 'https://visa-agency-ivory.vercel.app'` before processing — messages from other origins are silently ignored
 **And** on successful receipt: payload stored in `chrome.storage.local` under key `pendingApplication` và tự động mở một cửa sổ Chrome mới đến trang `https://evisa.gov.vn`
 **And** on failed message delivery: Dashboard shows persistent error toast "Extension not found — make sure it is installed and enabled."; application status does not change
 **And** extension `popup.tsx` shows "Ready to fill" when `pendingApplication` exists in storage, "No pending application" otherwise
