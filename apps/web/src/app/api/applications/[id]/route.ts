@@ -135,7 +135,8 @@ export async function PUT(
 
     // Build update payload — only include fields that are provided
     // Always update updated_at (AC-6: timestamp on every change)
-    const dbUpdates: Record<string, string | null> = { updated_at: new Date().toISOString() }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbUpdates: any = { updated_at: new Date().toISOString() }
 
     if (updates.lastName !== undefined) dbUpdates.last_name = updates.lastName
     if (updates.firstName !== undefined) dbUpdates.first_name = updates.firstName
