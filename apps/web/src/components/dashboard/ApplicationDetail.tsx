@@ -56,8 +56,8 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
   const { data: signedUrlsData, isLoading: isLoadingSignedUrls } = useSignedUrls(application.id)
 
   // Status-based visibility flags
-  // AC-3: Edit button only visible when status is 'raw'
-  const canEdit = application.status === 'raw'
+  // Edit button visible unless status is 'done'
+  const canEdit = application.status !== 'done'
   // AC-3 (story 4.1): "Create Data" button only visible when status is 'raw'
   const showCreateData = application.status === 'raw'
   // AC-6: "Push to eVisa" shown when status is 'ready'
@@ -255,7 +255,7 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
             Export
           </Button>
 
-          {/* AC-1 (story 3.5): Edit button visible only when status is 'raw'; hidden for ready/submitted/done */}
+          {/* Edit button visible unless status is 'done' */}
           {canEdit && (
             <Button
               id="edit-application-btn"
