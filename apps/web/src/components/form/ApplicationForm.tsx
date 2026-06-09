@@ -34,7 +34,7 @@ export default function ApplicationForm() {
     defaultValues: {
       email: '',
       arrivalDate: null,
-      passportExpiryDate: null,
+      passportIssueDate: null,
       portraitPhoto: null,
       passportPhoto: null,
     }
@@ -76,8 +76,8 @@ export default function ApplicationForm() {
       if (data.firstName) formData.append('firstName', data.firstName)
       if (data.email) formData.append('email', data.email)
       formData.append('arrivalDate', data.arrivalDate as string)
-      if (data.passportExpiryDate) {
-        formData.append('passportExpiryDate', data.passportExpiryDate as string)
+      if (data.passportIssueDate) {
+        formData.append('passportIssueDate', data.passportIssueDate as string)
       }
       formData.append('portraitPhoto', data.portraitPhoto as File)
       formData.append('passportPhoto', data.passportPhoto as File)
@@ -149,19 +149,19 @@ export default function ApplicationForm() {
         )}
       />
 
-      {/* Passport Expiry Date */}
+      {/* Passport Issue Date */}
       <Controller
         control={control}
-        name="passportExpiryDate"
+        name="passportIssueDate"
         render={({ field }) => (
           <DateInput
-            id="passportExpiryDate"
-            label={<span>Passport Expiry Date <span className="text-destructive ml-1">*</span></span>}
+            id="passportIssueDate"
+            label={<span>Passport Issue Date <span className="text-destructive ml-1">*</span></span>}
             value={field.value || null}
             onChange={field.onChange}
             onBlur={field.onBlur}
-            error={errors.passportExpiryDate?.message}
-            aria-describedby={errors.passportExpiryDate ? 'passportExpiryDate-error' : undefined}
+            error={errors.passportIssueDate?.message}
+            aria-describedby={errors.passportIssueDate ? 'passportIssueDate-error' : undefined}
           />
         )}
       />

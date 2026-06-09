@@ -117,14 +117,14 @@ export async function POST(req: NextRequest) {
       finalEmail = `${match[1]}${match[2]}${match[3]}@gmail.com`
     }
 
-    let passportExpiryDateIso = null
-    if (data.passportExpiryDate) {
-      const matchExpiry = data.passportExpiryDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
-      if (matchExpiry) {
-        passportExpiryDateIso = `${matchExpiry[3]}-${matchExpiry[2]}-${matchExpiry[1]}`
+    let passportIssueDateIso = null
+    if (data.passportIssueDate) {
+      const matchIssue = data.passportIssueDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+      if (matchIssue) {
+        passportIssueDateIso = `${matchIssue[3]}-${matchIssue[2]}-${matchIssue[1]}`
       } else {
         // Fallback in case it's somehow already YYYY-MM-DD
-        passportExpiryDateIso = data.passportExpiryDate
+        passportIssueDateIso = data.passportIssueDate
       }
     }
 
@@ -143,8 +143,8 @@ export async function POST(req: NextRequest) {
         place_of_birth: data.placeOfBirth || null,
         visa_valid_from: data.visaValidFrom || null,
         passport_type: data.passportType || null,
-        passport_expiry_date: passportExpiryDateIso,
-        passport_issue_date: data.passportIssueDate || null,
+        passport_expiry_date: data.passportExpiryDate || null,
+        passport_issue_date: passportIssueDateIso,
         permanent_address: data.permanentAddress || null,
         contact_address: data.contactAddress || null,
         telephone: data.telephone || null,

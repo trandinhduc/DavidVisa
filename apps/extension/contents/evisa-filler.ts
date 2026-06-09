@@ -172,8 +172,9 @@ async function fillForm() {
         return;
       }
 
-      // Check if the page is completely blank/broken on initial load for > 3.5s
-      if (!hasHandledConfirmation && !hasFilledForm && Date.now() - scriptStartTime > 3500) {
+      // 0. Failsafe reloads
+      // Check if the page is completely blank/broken on initial load for > 3s
+      if (!hasHandledConfirmation && !hasFilledForm && Date.now() - scriptStartTime > 3000) {
         const bodyText = document.body.innerText || '';
         if (bodyText.length < 50 && document.querySelectorAll('input, button, div').length < 10) {
            console.log("Page seems to have failed loading initially. Reloading...");
@@ -182,10 +183,10 @@ async function fillForm() {
         }
       }
 
-      // If we clicked Next, and 4 seconds have passed but form is still not found -> reload
+      // If we clicked Next, and 3 seconds have passed but form is still not found -> reload
       if (hasHandledConfirmation && !hasFilledForm && nextClickedTime > 0) {
-        if (Date.now() - nextClickedTime > 4000) {
-          console.log("Form did not load within 4s after clicking Next. Reloading page...");
+        if (Date.now() - nextClickedTime > 3000) {
+          console.log("Form did not load within 3s after clicking Next. Reloading page...");
           window.location.reload();
           return;
         }
@@ -257,9 +258,7 @@ async function fillForm() {
       }
 
       // 2. Check for Form Page
-      // Use more robust text-based detection from the screenshot
-      const isFormPage = document.body.innerText.includes("FOREIGNER'S IMAGES") || 
-                         document.body.innerText.includes("Portrait photography") ||
+      const isFormPage = document.body.innerText.includes("Portrait photography") &&
                          document.body.innerText.includes("Passport data page image");
                          
       if (isFormPage && !hasFilledForm) {
@@ -268,12 +267,51 @@ async function fillForm() {
         if (!popupInterval) popupInterval = setInterval(handleBlockingPopup, 1000);
 
         try {
+          // Upload Photos first so government OCR can run
+          const fileInputs = Array.from(document.querySelectorAll('input[type="file"]')) as HTMLInputElement[];
+          let portraitInput: HTMLInputElement | null = null;
+          let passportInput: HTMLInputElement | null = null;
+          
+          if (fileInputs.length >= 2) {
+             portraitInput = fileInputs[0];
+             passportInput = fileInputs[1];
+          } else if (fileInputs.length === 1) {
+             portraitInput = fileInputs[0];
+          }
+
+          if (portraitInput && pendingApp.portraitSignedUrl) {
+            await handlePhotoUploadByElement(pendingApp.portraitSignedUrl, portraitInput)
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          } else {
+            console.warn("Could not find file input for portrait photo");
+          }
+
+          if (passportInput && pendingApp.passportSignedUrl) {
+            await handlePhotoUploadByElement(pendingApp.passportSignedUrl, passportInput)
+            await new Promise(resolve => setTimeout(resolve, 2000));
+          } else {
+            console.warn("Could not find file input for passport photo");
+          }
+
           // Personal
-          // (First and Last name are filled automatically by government site via image upload)
-          // await autoFill('#basic_ttcnHo', pendingApp.lastName);
-          // await autoFill('#basic_ttcnDemVaTen', pendingApp.firstName);
           await autoFill('#basic_ttcnEmail', pendingApp.email);
           await autoFill('#basic_ttcnConfirmEmail', pendingApp.email);
+          
+          // Uncheck "Agree to create account" if present
+          const emailCheckboxes = document.querySelectorAll('.ant-checkbox-wrapper, label.ant-checkbox-wrapper');
+          for (const wrapper of Array.from(emailCheckboxes)) {
+            const text = (wrapper as HTMLElement).innerText || wrapper.textContent || '';
+            const lowerText = text.toLowerCase();
+            if (lowerText.includes('agree to create') || lowerText.includes('create account') || lowerText.includes('tạo tài khoản')) {
+              const checkboxInput = wrapper.querySelector('input[type="checkbox"]') as HTMLInputElement;
+              const isChecked = wrapper.querySelector('.ant-checkbox-checked') !== null || (checkboxInput && checkboxInput.checked);
+              if (isChecked) {
+                (wrapper as HTMLElement).click();
+                await new Promise(r => setTimeout(r, 200));
+              }
+            }
+          }
+
           await autoFill('#basic_ttcnTonGiao', pendingApp.religion);
           await autoFill('#basic_ttcnNoiSinh', pendingApp.placeOfBirth);
 
@@ -316,34 +354,8 @@ async function fillForm() {
           await autoFill('#basic_ttcdPhuongXa', pendingApp.wardCommune);
           await autoFill('#basic_ttcdNcCuaKhau', pendingApp.entryGate);
           await new Promise(r => setTimeout(r, 800));
-          await autoFill('#basic_ttcdXcCuaKhau', pendingApp.exitGate, 'Intended border gate of exit');
-          await new Promise(r => setTimeout(r, 500));
-          // Upload Photos
-          const fileInputs = Array.from(document.querySelectorAll('input[type="file"]')) as HTMLInputElement[];
-          let portraitInput: HTMLInputElement | null = null;
-          let passportInput: HTMLInputElement | null = null;
           
-          if (fileInputs.length >= 2) {
-             // Visual order is strict: Portrait is first, Passport is second
-             portraitInput = fileInputs[0];
-             passportInput = fileInputs[1];
-          } else if (fileInputs.length === 1) {
-             portraitInput = fileInputs[0]; // best effort
-          }
-
-          if (portraitInput && pendingApp.portraitSignedUrl) {
-            await handlePhotoUploadByElement(pendingApp.portraitSignedUrl, portraitInput)
-            // Wait 1 second before uploading the next image to prevent UI state overwrite
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          } else {
-            console.warn("Could not find file input for portrait photo");
-          }
-
-          if (passportInput && pendingApp.passportSignedUrl) {
-            await handlePhotoUploadByElement(pendingApp.passportSignedUrl, passportInput)
-          } else {
-            console.warn("Could not find file input for passport photo");
-          }
+          // Exit gate will be filled later after face compare
 
           // Check confirmation checkboxes at the bottom of the form
           const formCheckboxes = document.querySelectorAll('.ant-checkbox-wrapper, label.ant-checkbox-wrapper');
@@ -358,6 +370,25 @@ async function fillForm() {
             }
           }
 
+          // Wait for matching percentage message
+          console.log("Waiting for matching percentage...");
+          let matchWaitMs = 0;
+          while (matchWaitMs < 30000) {
+            await new Promise(r => setTimeout(r, 1000));
+            matchWaitMs += 1000;
+            const bodyText = document.body.innerText.toLowerCase();
+            if (bodyText.includes('mức độ khớp') || bodyText.includes('tương đồng') || bodyText.includes('matching') || bodyText.includes('khớp') || bodyText.includes('tỷ lệ') || bodyText.includes('similarity') || bodyText.includes('face compare')) {
+              break;
+            }
+          }
+
+          // After face compare is complete, wait 1s then fill Exit Gate
+          await new Promise(r => setTimeout(r, 1000));
+          await autoFill('#basic_ttcdXcCuaKhau', 'Cam Pha Seaport');
+          await new Promise(r => setTimeout(r, 500));
+
+          // Clear data cache
+          await storage.remove("pendingApplication");
           alert("Form filled — please review and submit.")
         } catch (error) {
           console.error("Error auto-filling form:", error)

@@ -43,11 +43,11 @@ export const applicationFormSchema = z.object({
   placeOfBirth: z.string().optional(),
   visaValidFrom: z.string().optional(),
   passportType: z.string().optional(),
-  passportExpiryDate: z
+  passportIssueDate: z
     .string()
     .nullable()
     .refine((val) => val !== null && val.length > 0, {
-      message: 'Passport Expiry Date is required',
+      message: 'Passport Issue Date is required',
     })
     .refine((val) => {
       if (!val) return false
@@ -67,9 +67,9 @@ export const applicationFormSchema = z.object({
       const date = new Date(parseInt(match[3], 10), parseInt(match[2], 10) - 1, parseInt(match[1], 10))
       const today = new Date()
       today.setHours(0, 0, 0, 0)
-      return date >= today
-    }, { message: 'Passport Expiry Date cannot be in the past.' }),
-  passportIssueDate: z.string().optional(),
+      return date <= today
+    }, { message: 'Passport Issue Date cannot be in the future.' }),
+  passportExpiryDate: z.string().optional(),
   permanentAddress: z.string().optional(),
   contactAddress: z.string().optional(),
   telephone: z.string().optional(),
