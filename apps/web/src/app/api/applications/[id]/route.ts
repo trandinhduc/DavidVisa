@@ -78,10 +78,10 @@ export async function GET(
 
 // Schema for updating application fields (status is NOT updated here — use /status route)
 const updateApplicationSchema = z.object({
-  lastName: z.string().min(1).optional(),
-  firstName: z.string().min(1).optional(),
-  email: z.string().email().optional(),
-  arrivalDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  lastName: z.string().optional(),
+  firstName: z.string().optional(),
+  email: z.string().email().or(z.literal('')).optional(),
+  arrivalDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).or(z.literal('')).optional(),
   religion: z.string().optional(),
   placeOfBirth: z.string().optional(),
   visaValidFrom: z.string().optional(),
