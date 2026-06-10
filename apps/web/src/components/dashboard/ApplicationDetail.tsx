@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Pencil, ChevronRight, Download } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -49,11 +50,19 @@ function formatArrivalDate(dateStr: string | null | undefined): string {
 
 export function ApplicationDetail({ application }: ApplicationDetailProps) {
   const queryClient = useQueryClient()
+  const searchParams = useSearchParams()
   const [editOpen, setEditOpen] = useState(false)
   const [createDataOpen, setCreateDataOpen] = useState(false)
   const [pushConfirmOpen, setPushConfirmOpen] = useState(false)
   const [isPushing, setIsPushing] = useState(false)
   const { data: signedUrlsData, isLoading: isLoadingSignedUrls } = useSignedUrls(application.id)
+
+  // Auto-open push modal when navigated with ?action=push from the list quick action
+  useEffect(() => {
+    if (searchParams.get('action') === 'push' && application.status === 'ready') {
+      setPushConfirmOpen(true)
+    }
+  }, [searchParams, application.status])
 
   // Status-based visibility flags
   // Edit button visible unless status is 'done'
@@ -359,6 +368,22 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
         </div>
         <div>
           <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Registration Duration
+          </dt>
+          <dd className="mt-1 text-sm text-foreground">
+            {application.registrationDuration ? `${application.registrationDuration} days` : '-'}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            Entry Type
+          </dt>
+          <dd className="mt-1 text-sm text-foreground capitalize">
+            {application.entryType ? `${application.entryType}-entry` : '-'}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
             Religion
           </dt>
           <dd className="mt-1 text-sm text-foreground">{application.religion || '-'}</dd>
@@ -538,6 +563,8 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
               arrivalDate: application.arrivalDate,
               portraitSignedUrl: signedUrlsData?.portraitSignedUrl ?? null,
               passportSignedUrl: signedUrlsData?.passportSignedUrl ?? null,
+              registrationDuration: application.registrationDuration,
+              entryType: application.entryType,
               religion: application.religion,
               placeOfBirth: application.placeOfBirth,
               visaValidFrom: application.visaValidFrom,

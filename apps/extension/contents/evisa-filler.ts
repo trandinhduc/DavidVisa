@@ -320,18 +320,36 @@ async function fillForm() {
           await autoFill('#basic_hcNgayCapStr', formatDate(pendingApp.passportIssueDate));
           await autoFill('#basic_hcGiaTriDenStr', formatDate(pendingApp.passportExpiryDate));
           await autoFill('#basic_nddnTtdtTuNgayStr', formatDate(pendingApp.visaValidFrom));
-          
+
           let validToDate = '';
           const fromDateStr = pendingApp.visaValidFrom || pendingApp.arrivalDate;
+          const durationDays = pendingApp.registrationDuration ?? 30;
           if (fromDateStr) {
             const parts = fromDateStr.split('-');
             if (parts.length === 3) {
               const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-              d.setDate(d.getDate() + 87);
+              d.setDate(d.getDate() + durationDays);
               validToDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
             }
           }
           await autoFill('#basic_nddnTtdtDenNgayStr', formatDate(validToDate));
+
+          // Select Single-entry or Multiple-entry based on entryType
+          if (pendingApp.entryType) {
+            const targetLabel = pendingApp.entryType === 'single' ? 'single' : 'multiple';
+            const radioWrappers = Array.from(document.querySelectorAll('.ant-radio-wrapper, label.ant-radio-button-wrapper'));
+            for (const wrapper of radioWrappers) {
+              const text = ((wrapper as HTMLElement).innerText || wrapper.textContent || '').toLowerCase();
+              if (text.includes(targetLabel)) {
+                const isChecked = wrapper.querySelector('.ant-radio-checked, .ant-radio-button-wrapper-checked') !== null;
+                if (!isChecked) {
+                  (wrapper as HTMLElement).click();
+                  await new Promise(r => setTimeout(r, 200));
+                }
+                break;
+              }
+            }
+          }
 
           // Addresses
           await autoFill('#basic_ttllDcThuongTru', pendingApp.permanentAddress);

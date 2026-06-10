@@ -24,6 +24,8 @@ export function useApplications() {
         status: item.status,
         portraitPath: item.portrait_path,
         passportPath: item.passport_path,
+        registrationDuration: item.registration_duration ?? null,
+        entryType: item.entry_type ?? null,
         createdAt: item.created_at,
         updatedAt: item.updated_at,
       })) as ApplicationData[]

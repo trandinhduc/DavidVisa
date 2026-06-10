@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { useForm, Controller } from 'react-hook-form'
+import { useForm, Controller, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useGoogleReCaptcha } from 'react-google-recaptcha-v3'
 import ReCAPTCHA from 'react-google-recaptcha'
@@ -16,6 +16,15 @@ import { cn } from '@/lib/utils'
 import { applicationFormSchema, type ApplicationFormData } from '@/lib/form-schemas'
 import { ImageUpload } from '@/components/form/ImageUpload'
 import { DateInput } from '@/components/form/DateInput'
+
+function computeVisaEndDate(arrivalDate: string | null, durationStr: string | null): string | null {
+  if (!arrivalDate || !durationStr) return null
+  const match = arrivalDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+  if (!match) return null
+  const d = new Date(parseInt(match[3], 10), parseInt(match[2], 10) - 1, parseInt(match[1], 10))
+  d.setDate(d.getDate() + parseInt(durationStr, 10))
+  return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(d)
+}
 
 export default function ApplicationForm() {
   const router = useRouter()
@@ -37,8 +46,13 @@ export default function ApplicationForm() {
       passportIssueDate: null,
       portraitPhoto: null,
       passportPhoto: null,
+      registrationDuration: null,
+      entryType: null,
     }
   })
+
+  const watchedArrivalDate = useWatch({ control, name: 'arrivalDate' })
+  const watchedDuration = useWatch({ control, name: 'registrationDuration' })
 
   const onSubmit = async (data: ApplicationFormData) => {
     let token: string | null = null
@@ -79,6 +93,8 @@ export default function ApplicationForm() {
       if (data.passportIssueDate) {
         formData.append('passportIssueDate', data.passportIssueDate as string)
       }
+      if (data.registrationDuration) formData.append('registrationDuration', data.registrationDuration)
+      if (data.entryType) formData.append('entryType', data.entryType)
       formData.append('portraitPhoto', data.portraitPhoto as File)
       formData.append('passportPhoto', data.passportPhoto as File)
       formData.append('recaptchaToken', token!)
@@ -131,6 +147,84 @@ export default function ApplicationForm() {
           </p>
         )}
       </div>
+
+      {/* Registration Duration */}
+      <Controller
+        control={control}
+        name="registrationDuration"
+        render={({ field }) => {
+          const endDate = computeVisaEndDate(watchedArrivalDate, field.value)
+          return (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="registrationDuration">Registration Duration</Label>
+              <select
+                id="registrationDuration"
+                value={field.value ?? ''}
+                onChange={(e) => field.onChange(e.target.value || null)}
+                onBlur={field.onBlur}
+                className={cn(
+                  "h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+                  errors.registrationDuration && 'border-destructive'
+                )}
+              >
+                <option value="">Select duration…</option>
+                <option value="30">30 days</option>
+                <option value="60">60 days</option>
+                <option value="90">90 days</option>
+              </select>
+              {endDate && (
+                <p className="text-xs text-muted-foreground">
+                  Visa valid until: <span className="font-medium text-foreground">{endDate}</span>
+                </p>
+              )}
+              {errors.registrationDuration && (
+                <p role="alert" className="text-xs text-destructive mt-1">
+                  {errors.registrationDuration.message}
+                </p>
+              )}
+            </div>
+          )
+        }}
+      />
+
+      {/* Entry Type */}
+      <Controller
+        control={control}
+        name="entryType"
+        render={({ field }) => (
+          <div className="flex flex-col gap-2">
+            <Label>Entry Type</Label>
+            <div className="flex gap-4">
+              {(['single', 'multiple'] as const).map((type) => (
+                <label
+                  key={type}
+                  className={cn(
+                    "flex items-center gap-2 cursor-pointer rounded-md border px-4 py-2.5 text-sm transition-colors",
+                    field.value === type
+                      ? "border-primary bg-primary/5 text-primary font-medium"
+                      : "border-input hover:border-primary/50"
+                  )}
+                >
+                  <input
+                    type="radio"
+                    value={type}
+                    checked={field.value === type}
+                    onChange={() => field.onChange(type)}
+                    onBlur={field.onBlur}
+                    className="sr-only"
+                  />
+                  {type === 'single' ? 'Single-entry' : 'Multiple-entry'}
+                </label>
+              ))}
+            </div>
+            {errors.entryType && (
+              <p role="alert" className="text-xs text-destructive">
+                {errors.entryType.message}
+              </p>
+            )}
+          </div>
+        )}
+      />
 
       {/* Arrival Date */}
       <Controller

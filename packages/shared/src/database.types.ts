@@ -46,6 +46,7 @@ export type Database = {
           emergency_relationship: string | null
           emergency_telephone: string | null
           entry_gate: string | null
+          entry_type: string | null
           exit_gate: string | null
           first_name: string | null
           id: string
@@ -61,6 +62,7 @@ export type Database = {
           portrait_path: string | null
           province_city: string | null
           purpose_of_entry: string | null
+          registration_duration: number | null
           religion: string | null
           residential_address_in_vietnam: string | null
           status: string
@@ -80,6 +82,7 @@ export type Database = {
           emergency_relationship?: string | null
           emergency_telephone?: string | null
           entry_gate?: string | null
+          entry_type?: string | null
           exit_gate?: string | null
           first_name?: string | null
           id?: string
@@ -95,6 +98,7 @@ export type Database = {
           portrait_path?: string | null
           province_city?: string | null
           purpose_of_entry?: string | null
+          registration_duration?: number | null
           religion?: string | null
           residential_address_in_vietnam?: string | null
           status?: string
@@ -114,6 +118,7 @@ export type Database = {
           emergency_relationship?: string | null
           emergency_telephone?: string | null
           entry_gate?: string | null
+          entry_type?: string | null
           exit_gate?: string | null
           first_name?: string | null
           id?: string
@@ -129,6 +134,7 @@ export type Database = {
           portrait_path?: string | null
           province_city?: string | null
           purpose_of_entry?: string | null
+          registration_duration?: number | null
           religion?: string | null
           residential_address_in_vietnam?: string | null
           status?: string

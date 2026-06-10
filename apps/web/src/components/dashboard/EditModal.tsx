@@ -25,6 +25,8 @@ interface EditFormState {
   firstName: string
   email: string
   arrivalDate: string
+  registrationDuration: number | null
+  entryType: 'single' | 'multiple' | null
   religion: string
   placeOfBirth: string
   visaValidFrom: string
@@ -60,6 +62,8 @@ export function EditModal({ application, open, onOpenChange }: EditModalProps) {
     firstName: application.firstName || '',
     email: application.email || '',
     arrivalDate: application.arrivalDate,
+    registrationDuration: application.registrationDuration ?? null,
+    entryType: application.entryType ?? null,
     religion: application.religion || 'No',
     placeOfBirth: application.placeOfBirth || 'Same as nationality',
     visaValidFrom: application.visaValidFrom || application.arrivalDate || '',
@@ -93,6 +97,8 @@ export function EditModal({ application, open, onOpenChange }: EditModalProps) {
         firstName: application.firstName || '',
         email: application.email || '',
         arrivalDate: application.arrivalDate,
+        registrationDuration: application.registrationDuration ?? null,
+        entryType: application.entryType ?? null,
         religion: application.religion || 'No',
         placeOfBirth: application.placeOfBirth || 'Same as nationality',
         visaValidFrom: application.visaValidFrom || application.arrivalDate || '',
@@ -157,6 +163,8 @@ export function EditModal({ application, open, onOpenChange }: EditModalProps) {
           firstName: form.firstName,
           email: form.email,
           arrivalDate: form.arrivalDate,
+          registrationDuration: form.registrationDuration,
+          entryType: form.entryType,
           religion: form.religion,
           placeOfBirth: form.placeOfBirth,
           visaValidFrom: form.visaValidFrom,
@@ -254,6 +262,53 @@ export function EditModal({ application, open, onOpenChange }: EditModalProps) {
               onChange={(e) => setForm((prev) => ({ ...prev, arrivalDate: e.target.value }))}
               disabled={isSaving}
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-registration-duration">Registration Duration</Label>
+              <select
+                id="edit-registration-duration"
+                value={form.registrationDuration ?? ''}
+                onChange={(e) => setForm((prev) => ({
+                  ...prev,
+                  registrationDuration: e.target.value ? parseInt(e.target.value, 10) : null,
+                  intendedLengthOfStay: e.target.value || prev.intendedLengthOfStay,
+                }))}
+                disabled={isSaving}
+                className="h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="">Select…</option>
+                <option value="30">30 days</option>
+                <option value="60">60 days</option>
+                <option value="90">90 days</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Entry Type</Label>
+              <div className="flex gap-2 pt-1">
+                {(['single', 'multiple'] as const).map((type) => (
+                  <label
+                    key={type}
+                    className={`flex items-center gap-1.5 cursor-pointer rounded-md border px-3 py-2 text-sm transition-colors ${
+                      form.entryType === type
+                        ? 'border-primary bg-primary/5 text-primary font-medium'
+                        : 'border-input hover:border-primary/50'
+                    } ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    <input
+                      type="radio"
+                      value={type}
+                      checked={form.entryType === type}
+                      onChange={() => setForm((prev) => ({ ...prev, entryType: type }))}
+                      disabled={isSaving}
+                      className="sr-only"
+                    />
+                    {type === 'single' ? 'Single' : 'Multiple'}
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

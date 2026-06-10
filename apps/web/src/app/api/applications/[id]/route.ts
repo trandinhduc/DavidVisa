@@ -41,6 +41,8 @@ export async function GET(
       firstName: data.first_name,
       email: data.email,
       arrivalDate: data.arrival_date,
+      registrationDuration: data.registration_duration ?? null,
+      entryType: data.entry_type ?? null,
       religion: data.religion,
       placeOfBirth: data.place_of_birth,
       visaValidFrom: data.visa_valid_from,
@@ -82,6 +84,8 @@ const updateApplicationSchema = z.object({
   firstName: z.string().optional(),
   email: z.string().email().or(z.literal('')).optional(),
   arrivalDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).or(z.literal('')).optional(),
+  registrationDuration: z.number().int().refine((v) => [30, 60, 90].includes(v)).optional().nullable(),
+  entryType: z.enum(['single', 'multiple']).optional().nullable(),
   religion: z.string().optional(),
   placeOfBirth: z.string().optional(),
   visaValidFrom: z.string().optional(),
@@ -142,6 +146,8 @@ export async function PUT(
     if (updates.firstName !== undefined) dbUpdates.first_name = updates.firstName
     if (updates.email !== undefined) dbUpdates.email = updates.email
     if (updates.arrivalDate !== undefined) dbUpdates.arrival_date = updates.arrivalDate === "" ? null : updates.arrivalDate
+    if (updates.registrationDuration !== undefined) dbUpdates.registration_duration = updates.registrationDuration
+    if (updates.entryType !== undefined) dbUpdates.entry_type = updates.entryType
     if (updates.religion !== undefined) dbUpdates.religion = updates.religion
     if (updates.placeOfBirth !== undefined) dbUpdates.place_of_birth = updates.placeOfBirth
     if (updates.visaValidFrom !== undefined) dbUpdates.visa_valid_from = updates.visaValidFrom === "" ? null : updates.visaValidFrom
@@ -188,6 +194,8 @@ export async function PUT(
       firstName: data.first_name,
       email: data.email,
       arrivalDate: data.arrival_date,
+      registrationDuration: data.registration_duration ?? null,
+      entryType: data.entry_type ?? null,
       religion: data.religion,
       placeOfBirth: data.place_of_birth,
       visaValidFrom: data.visa_valid_from,

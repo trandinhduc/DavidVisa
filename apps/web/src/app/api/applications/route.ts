@@ -23,6 +23,8 @@ export async function POST(req: NextRequest) {
       arrivalDate: formData.get('arrivalDate') || '',
       portraitPhoto: formData.get('portraitPhoto'),
       passportPhoto: formData.get('passportPhoto'),
+      registrationDuration: formData.get('registrationDuration') || null,
+      entryType: formData.get('entryType') || null,
       religion: formData.get('religion') || '',
       placeOfBirth: formData.get('placeOfBirth') || '',
       visaValidFrom: formData.get('visaValidFrom') || '',
@@ -130,8 +132,20 @@ export async function POST(req: NextRequest) {
 
     const supabase = createServiceClient()
 
+    // Compute visa valid-from (= arrival date) and valid-to based on registration duration
+    const registrationDays = data.registrationDuration ? parseInt(data.registrationDuration, 10) : 30
+    const arrivalDateObj = new Date(
+      parseInt(match[3], 10),
+      parseInt(match[2], 10) - 1,
+      parseInt(match[1], 10)
+    )
+    const validToObj = new Date(arrivalDateObj)
+    validToObj.setDate(validToObj.getDate() + registrationDays)
+    const validToIso = `${validToObj.getFullYear()}-${String(validToObj.getMonth() + 1).padStart(2, '0')}-${String(validToObj.getDate()).padStart(2, '0')}`
+
     // 6. Insert row to generate app_id
     // Note: RLS is bypassed because we use the Service Role Key
+    // Auto-fill default data and set status to 'ready' directly (no manual "Create Data" step needed)
     const { data: dbData, error: dbError } = await supabase
       .from('applications')
       .insert({
@@ -139,28 +153,30 @@ export async function POST(req: NextRequest) {
         first_name: data.firstName || '',
         email: finalEmail,
         arrival_date: arrivalDateIso,
-        religion: data.religion || null,
-        place_of_birth: data.placeOfBirth || null,
-        visa_valid_from: data.visaValidFrom || null,
-        passport_type: data.passportType || null,
-        passport_expiry_date: data.passportExpiryDate || null,
+        registration_duration: registrationDays,
+        entry_type: data.entryType || null,
+        religion: data.religion || 'No',
+        place_of_birth: data.placeOfBirth || 'Same as nationality',
+        visa_valid_from: arrivalDateIso,
+        passport_type: data.passportType || 'Ordinary passport',
+        passport_expiry_date: data.passportExpiryDate || validToIso,
         passport_issue_date: passportIssueDateIso,
-        permanent_address: data.permanentAddress || null,
-        contact_address: data.contactAddress || null,
-        telephone: data.telephone || null,
-        emergency_name: data.emergencyName || null,
-        emergency_address: data.emergencyAddress || null,
-        emergency_telephone: data.emergencyTelephone || null,
-        emergency_relationship: data.emergencyRelationship || null,
-        purpose_of_entry: data.purposeOfEntry || null,
-        intended_date_of_entry: data.intendedDateOfEntry || null,
-        intended_length_of_stay: data.intendedLengthOfStay || null,
-        residential_address_in_vietnam: data.residentialAddressInVietnam || null,
-        province_city: data.provinceCity || null,
-        ward_commune: data.wardCommune || null,
-        entry_gate: data.entryGate || null,
-        exit_gate: data.exitGate || null,
-        status: 'raw',
+        permanent_address: data.permanentAddress || '2568 Park Ave, Bronx, NY 10451, United State',
+        contact_address: data.contactAddress || '2568 Park Ave, Bronx, NY 10451, United State',
+        telephone: data.telephone || '19295265900',
+        emergency_name: data.emergencyName || 'WILLIAM BALACHANDAR',
+        emergency_address: data.emergencyAddress || '2568 Park Ave, Bronx, NY 10451, United State',
+        emergency_telephone: data.emergencyTelephone || '19295265900',
+        emergency_relationship: data.emergencyRelationship || 'Dad',
+        purpose_of_entry: data.purposeOfEntry || 'Tourist',
+        intended_date_of_entry: data.intendedDateOfEntry || arrivalDateIso,
+        intended_length_of_stay: data.intendedLengthOfStay || String(registrationDays),
+        residential_address_in_vietnam: data.residentialAddressInVietnam || '39 Hàng Bài, Hoàn Kiếm, Hà Nội',
+        province_city: data.provinceCity || 'Ha Noi City',
+        ward_commune: data.wardCommune || 'HOAN KIEM WARD',
+        entry_gate: data.entryGate || 'Noi Bai Int Airport',
+        exit_gate: data.exitGate || 'Noi Bai Int Airport',
+        status: 'ready',
       })
       .select('id, app_id')
       .single()

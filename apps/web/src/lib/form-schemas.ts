@@ -4,6 +4,12 @@ export const applicationFormSchema = z.object({
   lastName: z.string().optional(),
   firstName: z.string().optional(),
   email: z.string().optional(),
+  registrationDuration: z.enum(['30', '60', '90']).nullable().refine((v) => v !== null, {
+    message: 'Please select a registration duration',
+  }),
+  entryType: z.enum(['single', 'multiple']).nullable().refine((v) => v !== null, {
+    message: 'Please select entry type',
+  }),
   portraitPhoto: z
     .instanceof(File)
     .nullable()

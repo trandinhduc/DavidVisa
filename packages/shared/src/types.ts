@@ -12,6 +12,8 @@ export interface ApplicationData {
   status: ApplicationStatus
   portraitPath: string | null
   passportPath: string | null
+  registrationDuration: number | null
+  entryType: 'single' | 'multiple' | null
   religion: string | null
   placeOfBirth: string | null
   visaValidFrom: string | null
@@ -47,6 +49,8 @@ export interface PushToEvisaMessage {
   arrivalDate: string
   portraitSignedUrl: string | null
   passportSignedUrl: string | null
+  registrationDuration: number | null
+  entryType: 'single' | 'multiple' | null
   religion: string | null
   placeOfBirth: string | null
   visaValidFrom: string | null
