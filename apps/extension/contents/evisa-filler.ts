@@ -334,23 +334,6 @@ async function fillForm() {
           }
           await autoFill('#basic_nddnTtdtDenNgayStr', formatDate(validToDate));
 
-          // Select Single-entry or Multiple-entry based on entryType
-          if (pendingApp.entryType) {
-            const targetLabel = pendingApp.entryType === 'single' ? 'single' : 'multiple';
-            const radioWrappers = Array.from(document.querySelectorAll('.ant-radio-wrapper, label.ant-radio-button-wrapper'));
-            for (const wrapper of radioWrappers) {
-              const text = ((wrapper as HTMLElement).innerText || wrapper.textContent || '').toLowerCase();
-              if (text.includes(targetLabel)) {
-                const isChecked = wrapper.querySelector('.ant-radio-checked, .ant-radio-button-wrapper-checked') !== null;
-                if (!isChecked) {
-                  (wrapper as HTMLElement).click();
-                  await new Promise(r => setTimeout(r, 200));
-                }
-                break;
-              }
-            }
-          }
-
           // Addresses
           await autoFill('#basic_ttllDcThuongTru', pendingApp.permanentAddress);
           await autoFill('#basic_ttllDcLienHe', pendingApp.contactAddress);
@@ -400,8 +383,38 @@ async function fillForm() {
             }
           }
 
-          // After face compare is complete, wait 1s then fill Exit Gate
+          // After face compare is complete, wait 1s then select entry type and fill exit gate
           await new Promise(r => setTimeout(r, 1000));
+
+          // Select Single-entry or Multiple-entry after face matching succeeds
+          if (pendingApp.entryType) {
+            const targetLabel = pendingApp.entryType === 'single' ? 'single' : 'multiple';
+            let entrySelected = false;
+            let entryRetries = 0;
+            while (!entrySelected && entryRetries < 10) {
+              const radioWrappers = Array.from(document.querySelectorAll('.ant-radio-wrapper, label.ant-radio-button-wrapper'));
+              for (const wrapper of radioWrappers) {
+                const text = ((wrapper as HTMLElement).innerText || wrapper.textContent || '').toLowerCase();
+                if (text.includes(targetLabel)) {
+                  const isChecked = wrapper.querySelector('.ant-radio-checked, .ant-radio-button-wrapper-checked') !== null;
+                  if (!isChecked) {
+                    (wrapper as HTMLElement).click();
+                    await new Promise(r => setTimeout(r, 300));
+                  }
+                  entrySelected = true;
+                  break;
+                }
+              }
+              if (!entrySelected) {
+                await new Promise(r => setTimeout(r, 500));
+                entryRetries++;
+              }
+            }
+            if (!entrySelected) {
+              console.warn('Could not find entry type radio button for:', targetLabel);
+            }
+          }
+
           await autoFill('#basic_ttcdXcCuaKhau', 'Cam Pha Seaport');
           await new Promise(r => setTimeout(r, 500));
 
