@@ -23,9 +23,9 @@ project_knowledge = "{project-root}/docs"
 [modules.tea]
 test_artifacts = "{project-root}/_bmad-output/test-artifacts"
 tea_use_playwright_utils = true
-tea_use_pactjs_utils = false
-tea_pact_mcp = "none"
-tea_browser_automation = "auto"
+tea_use_pactjs_utils = true
+tea_pact_mcp = "mcp"
+tea_browser_automation = "cli"
 tea_execution_mode = "auto"
 tea_capability_probe = true
 test_stack_type = "auto"
@@ -37,16 +37,20 @@ test_review_output = "_bmad-output/test-artifacts/test-reviews"
 trace_output = "_bmad-output/test-artifacts/traceability"
 
 [modules.cis]
-visual_tools = "intermediate"
+visual_tools = ["mermaid", "gemini-nano", "excalidraw"]
 
 [modules.wds]
 project_knowledge = "{project-root}/docs"
-project_type = "digital_product"
+project_type = "website"
 design_artifacts = "{project-root}/design-artifacts"
-design_system_mode = "none"
+design_system_mode = "component_library"
 methodology_version = "wds-v6"
-product_languages = "[\"en\"]"
+product_languages = ["en"]
 design_experience = "intermediate"
+
+[modules.bmb]
+bmad_builder_output_folder = "{project-root}/skills"
+bmad_builder_reports = "{project-root}/skills/reports"
 
 [agents.bmad-agent-analyst]
 module = "bmm"
