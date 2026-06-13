@@ -42,7 +42,8 @@ function parseMrzLine(line) {
   const lastName = namesField.substring(0, sepIdx).replace(/</g, ' ').trim()
   const givenNamesRaw = namesField.substring(sepIdx + 2)
   const firstName = givenNamesRaw.split('<').filter(Boolean).join(' ').trim()
-  if (!lastName) return null
+  // Yêu cầu cả hai — firstName trống thường là dấu hiệu OCR misread separator '<<'
+  if (!lastName || !firstName) return null
   return { lastName, firstName }
 }
 
