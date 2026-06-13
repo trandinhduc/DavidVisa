@@ -260,6 +260,27 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    // 9. Auto-read Surname and Given Names from passport MRZ via OCR.space
+    // Non-fatal: record already has form-provided names as fallback
+    try {
+      const { extractMrzFromPassport } = await import('@/lib/ocr-passport')
+      const { data: passportSignedUrl } = await supabase.storage
+        .from('applications')
+        .createSignedUrl(passportPath, 120)
+      if (passportSignedUrl?.signedUrl) {
+        const mrz = await extractMrzFromPassport(passportSignedUrl.signedUrl)
+        if (mrz) {
+          await supabase
+            .from('applications')
+            .update({ last_name: mrz.lastName, first_name: mrz.firstName })
+            .eq('id', id)
+        }
+      }
+    } catch (ocrErr) {
+      // OCR failure is non-fatal — application created successfully with form-provided names
+      console.warn('[OCR] Failed to extract MRZ from passport:', ocrErr)
+    }
+
     // Return success response exactly as specified
     return NextResponse.json({ data: { appId: app_id }, error: null }, { status: 200 })
 
