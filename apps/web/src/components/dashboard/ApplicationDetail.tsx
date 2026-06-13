@@ -210,6 +210,23 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
     }
   }
 
+  const handleOcrPassport = async () => {
+    try {
+      const res = await fetch(`/api/applications/${application.id}/ocr`, {
+        method: 'POST',
+      })
+      const json = await res.json()
+      if (!res.ok || json.error) {
+        toast.error(json.error?.message ?? 'OCR failed')
+        return
+      }
+      toast.success(`Đọc thành công: ${json.data.lastName} / ${json.data.firstName}`)
+      await queryClient.invalidateQueries({ queryKey: ['applications'] })
+    } catch {
+      toast.error('OCR request failed')
+    }
+  }
+
   const handleDeleteConfirm = async () => {
     setDeleteOpen(false)
     try {
@@ -305,6 +322,12 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
             >
               <Pencil className="h-3.5 w-3.5" />
               Edit
+            </Button>
+          )}
+
+          {canEdit && (
+            <Button variant="outline" size="sm" onClick={handleOcrPassport}>
+              Đọc tên từ passport
             </Button>
           )}
 
