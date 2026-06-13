@@ -157,283 +157,301 @@ async function fillForm() {
     const pendingApp = await storage.get<PushToEvisaMessage>("pendingApplication")
     if (!pendingApp) return
 
-    console.log("Found pending application, waiting for page content...", pendingApp)
+    console.log("Found pending application, determining page load status...");
 
-    let hasHandledConfirmation = false;
-    let hasFilledForm = false;
-    let isConfirming = false;
-    let popupInterval: ReturnType<typeof setInterval> | null = null;
-    let nextClickedTime = 0;
-    const scriptStartTime = Date.now();
+    // Helper to check for form page
+    const isFormPage = () => document.body.innerText.includes("Portrait photography") || 
+                             document.body.innerText.includes("Passport data page image");
 
-    const mainInterval = setInterval(async () => {
-      if (hasFilledForm) {
-        clearInterval(mainInterval);
+    // Helper to check for confirmation page
+    const getConfirmationCheckboxes = () => {
+      let checkbox1: HTMLElement | null = null;
+      let checkbox2: HTMLElement | null = null;
+      const allCheckboxes = document.querySelectorAll('.ant-checkbox-wrapper');
+      for (const wrapper of Array.from(allCheckboxes)) {
+        const text = (wrapper as HTMLElement).innerText || wrapper.textContent || '';
+        const lowerText = text.toLowerCase();
+        if (lowerText.includes('compliance') || lowerText.includes('vietnamese laws')) checkbox1 = wrapper as HTMLElement;
+        if (lowerText.includes('reading') || lowerText.includes('instructions')) checkbox2 = wrapper as HTMLElement;
+      }
+      if ((!checkbox1 || !checkbox2) && allCheckboxes.length >= 2) {
+         const isConfirmationTextPresent = document.body.innerText.includes('compliance') || document.body.innerText.includes('instructions');
+         if (isConfirmationTextPresent) {
+           checkbox1 = allCheckboxes[0] as HTMLElement;
+           checkbox2 = allCheckboxes[1] as HTMLElement;
+         }
+      }
+      return { checkbox1, checkbox2 };
+    };
+
+    let waitTime = 0;
+    const interval = 200;
+    let pageType: 'form' | 'confirmation' | 'none' = 'none';
+
+    while (waitTime < 2000) {
+      if (isFormPage()) {
+        pageType = 'form';
+        break;
+      }
+      const { checkbox1, checkbox2 } = getConfirmationCheckboxes();
+      if (checkbox1 && checkbox2) {
+        pageType = 'confirmation';
+        break;
+      }
+      await new Promise(resolve => setTimeout(resolve, interval));
+      waitTime += interval;
+    }
+
+    if (pageType === 'none') {
+      console.log("Page not loaded properly after 2s. Refreshing...");
+      window.location.reload();
+      return;
+    }
+
+    if (pageType === 'confirmation') {
+      console.log("On confirmation page, scrolling and checking ant-checkboxes...");
+      const { checkbox1, checkbox2 } = getConfirmationCheckboxes();
+      
+      const modalBody = document.querySelector('.ant-modal-body, .modal-body, .v-dialog');
+      if (modalBody) {
+         modalBody.scrollTop = modalBody.scrollHeight;
+      } else if (checkbox2) {
+         checkbox2.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      
+      await new Promise(r => setTimeout(r, 1000));
+      
+      const isChecked1 = checkbox1!.querySelector('.ant-checkbox-checked') !== null;
+      const isChecked2 = checkbox2!.querySelector('.ant-checkbox-checked') !== null;
+
+      if (!isChecked1) checkbox1!.click();
+      if (!isChecked2) checkbox2!.click();
+      
+      await new Promise(r => setTimeout(r, 1000));
+      
+      const buttons = Array.from(document.querySelectorAll('button, a.btn, input[type="button"], input[type="submit"]')) as HTMLElement[];
+      const nextBtn = buttons.find(b => {
+        const btnText = b.innerText?.trim() || (b as HTMLInputElement).value?.trim() || '';
+        return btnText.toLowerCase() === 'next' || btnText.toLowerCase() === 'tiếp tục';
+      });
+      
+      if (nextBtn && !nextBtn.hasAttribute('disabled') && !(nextBtn as HTMLButtonElement).disabled) {
+        console.log("Clicking Next...");
+        nextBtn.click();
+      } else {
+        console.warn("Next button disabled or not found.");
+      }
+      
+      // Wait for form to appear after clicking next
+      console.log("Waiting for form to load after confirmation...");
+      let waitFormTime = 0;
+      while (!isFormPage() && waitFormTime < 10000) {
+        await new Promise(r => setTimeout(r, 500));
+        waitFormTime += 500;
+      }
+      
+      if (!isFormPage()) {
+        console.log("Form did not load within 10s after confirmation. Refreshing...");
+        window.location.reload();
         return;
       }
+    }
 
-      // 0. Failsafe reloads
-      // Check if the page is completely blank/broken on initial load for > 3s
-      if (!hasHandledConfirmation && !hasFilledForm && Date.now() - scriptStartTime > 3000) {
-        const bodyText = document.body.innerText || '';
-        if (bodyText.length < 50 && document.querySelectorAll('input, button, div').length < 10) {
-           console.log("Page seems to have failed loading initially. Reloading...");
-           window.location.reload();
-           return;
+    console.log("Page loaded successfully. Uploading photos...");
+
+    // Start popup handler to auto-close any blocking modals
+    const popupInterval = setInterval(handleBlockingPopup, 1000);
+
+    try {
+      // Upload Photos
+      const fileInputs = Array.from(document.querySelectorAll('input[type="file"]')) as HTMLInputElement[];
+      let portraitInput: HTMLInputElement | null = null;
+      let passportInput: HTMLInputElement | null = null;
+      
+      if (fileInputs.length >= 2) {
+         portraitInput = fileInputs[0];
+         passportInput = fileInputs[1];
+      } else if (fileInputs.length === 1) {
+         portraitInput = fileInputs[0];
+      }
+
+      if (portraitInput && pendingApp.portraitSignedUrl) {
+        await handlePhotoUploadByElement(pendingApp.portraitSignedUrl, portraitInput)
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } else {
+        console.warn("Could not find file input for portrait photo");
+      }
+
+      if (passportInput && pendingApp.passportSignedUrl) {
+        await handlePhotoUploadByElement(pendingApp.passportSignedUrl, passportInput)
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } else {
+        console.warn("Could not find file input for passport photo");
+      }
+
+      // Wait for Face compare signal
+      console.log("Waiting for Face compare signal...");
+      let matchWaitMs = 0;
+      let isFaceCompared = false;
+      while (matchWaitMs < 60000) { // wait up to 60s
+        await new Promise(r => setTimeout(r, 1000));
+        matchWaitMs += 1000;
+        const bodyText = document.body.innerText.toLowerCase();
+        if (bodyText.includes('face compare') || bodyText.includes('mức độ khớp') || bodyText.includes('tương đồng') || bodyText.includes('matching') || bodyText.includes('khớp') || bodyText.includes('tỷ lệ') || bodyText.includes('similarity')) {
+          isFaceCompared = true;
+          break;
         }
       }
 
-      // If we clicked Next, and 3 seconds have passed but form is still not found -> reload
-      if (hasHandledConfirmation && !hasFilledForm && nextClickedTime > 0) {
-        if (Date.now() - nextClickedTime > 3000) {
-          console.log("Form did not load within 3s after clicking Next. Reloading page...");
-          window.location.reload();
-          return;
+      if (!isFaceCompared) {
+        console.warn("Did not see Face compare signal after 60s.");
+      }
+
+      console.log("Face compare successful. Proceeding to fill remaining info...");
+      
+      // Personal
+      await autoFill('#basic_ttcnEmail', pendingApp.email);
+      await autoFill('#basic_ttcnConfirmEmail', pendingApp.email);
+      
+      // Uncheck "Agree to create account" if present
+      const emailCheckboxes = document.querySelectorAll('.ant-checkbox-wrapper, label.ant-checkbox-wrapper');
+      for (const wrapper of Array.from(emailCheckboxes)) {
+        const text = (wrapper as HTMLElement).innerText || wrapper.textContent || '';
+        const lowerText = text.toLowerCase();
+        if (lowerText.includes('agree to create') || lowerText.includes('create account') || lowerText.includes('tạo tài khoản')) {
+          const checkboxInput = wrapper.querySelector('input[type="checkbox"]') as HTMLInputElement;
+          const isChecked = wrapper.querySelector('.ant-checkbox-checked') !== null || (checkboxInput && checkboxInput.checked);
+          if (isChecked) {
+            (wrapper as HTMLElement).click();
+            await new Promise(r => setTimeout(r, 200));
+          }
         }
       }
 
-      // 1. Check for Confirmation Page
-      if (!hasHandledConfirmation) {
-        let checkbox1: HTMLElement | null = null;
-        let checkbox2: HTMLElement | null = null;
-        
-        // Find Ant Design checkboxes
-        const allCheckboxes = document.querySelectorAll('.ant-checkbox-wrapper');
-        for (const wrapper of Array.from(allCheckboxes)) {
-          const text = (wrapper as HTMLElement).innerText || wrapper.textContent || '';
-          const lowerText = text.toLowerCase();
-          
-          if (lowerText.includes('compliance') || lowerText.includes('vietnamese laws')) checkbox1 = wrapper as HTMLElement;
-          if (lowerText.includes('reading') || lowerText.includes('instructions')) checkbox2 = wrapper as HTMLElement;
-        }
+      await autoFill('#basic_ttcnTonGiao', pendingApp.religion);
+      await autoFill('#basic_ttcnNoiSinh', pendingApp.placeOfBirth);
 
-        // Fallback: If we couldn't match text but there are exactly 2 checkboxes or more, pick the first two
-        if ((!checkbox1 || !checkbox2) && allCheckboxes.length >= 2) {
-           const isConfirmationTextPresent = document.body.innerText.includes('compliance') || document.body.innerText.includes('instructions');
-           if (isConfirmationTextPresent) {
-             checkbox1 = allCheckboxes[0] as HTMLElement;
-             checkbox2 = allCheckboxes[1] as HTMLElement;
-           }
-        }
+      // Passport
+      await autoFill('#basic_hcLoai', pendingApp.passportType);
+      await autoFill('#basic_hcNgayCapStr', formatDate(pendingApp.passportIssueDate));
+      // Note: Expire date (#basic_hcGiaTriDenStr) is intentionally skipped as evisa auto-fills it
+      
+      await autoFill('#basic_nddnTtdtTuNgayStr', formatDate(pendingApp.visaValidFrom));
 
-        if (checkbox1 && checkbox2 && !isConfirming) {
-          isConfirming = true;
-          console.log("On confirmation page, scrolling and checking ant-checkboxes...");
-          
-          const modalBody = document.querySelector('.ant-modal-body, .modal-body, .v-dialog');
-          if (modalBody) {
-             modalBody.scrollTop = modalBody.scrollHeight;
-          } else {
-             checkbox2.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-          
-          setTimeout(() => {
-            const isChecked1 = checkbox1!.querySelector('.ant-checkbox-checked') !== null;
-            const isChecked2 = checkbox2!.querySelector('.ant-checkbox-checked') !== null;
-
-            if (!isChecked1) checkbox1!.click();
-            if (!isChecked2) checkbox2!.click();
-            
-            setTimeout(() => {
-              const buttons = Array.from(document.querySelectorAll('button, a.btn, input[type="button"], input[type="submit"]')) as HTMLElement[];
-              const nextBtn = buttons.find(b => {
-                const btnText = b.innerText?.trim() || (b as HTMLInputElement).value?.trim() || '';
-                return btnText.toLowerCase() === 'next';
-              });
-              
-              if (nextBtn && !nextBtn.hasAttribute('disabled') && !(nextBtn as HTMLButtonElement).disabled) {
-                console.log("Clicking Next...");
-                nextBtn.click();
-                hasHandledConfirmation = true;
-                nextClickedTime = Date.now();
-                isConfirming = false;
-              } else {
-                console.log("Next button disabled or not found, retrying...");
-                isConfirming = false;
-              }
-            }, 1000);
-          }, 1000);
-          return;
+      let validToDate = '';
+      const fromDateStr = pendingApp.visaValidFrom || pendingApp.arrivalDate;
+      const durationDays = pendingApp.registrationDuration ?? 30;
+      if (fromDateStr) {
+        const parts = fromDateStr.split('-');
+        if (parts.length === 3) {
+          const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+          d.setDate(d.getDate() + (durationDays - 1));
+          validToDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
         }
       }
+      await autoFill('#basic_nddnTtdtDenNgayStr', formatDate(validToDate));
 
-      // 2. Check for Form Page
-      const isFormPage = document.body.innerText.includes("Portrait photography") &&
-                         document.body.innerText.includes("Passport data page image");
-                         
-      if (isFormPage && !hasFilledForm) {
-        hasFilledForm = true;
-        console.log("On form page, starting auto-fill...");
-        if (!popupInterval) popupInterval = setInterval(handleBlockingPopup, 1000);
+      // Addresses
+      await autoFill('#basic_ttllDcThuongTru', pendingApp.permanentAddress);
+      await autoFill('#basic_ttllDcLienHe', pendingApp.contactAddress);
+      await autoFill('#basic_ttllSdt', pendingApp.telephone);
 
-        try {
-          // Upload Photos first so government OCR can run
-          const fileInputs = Array.from(document.querySelectorAll('input[type="file"]')) as HTMLInputElement[];
-          let portraitInput: HTMLInputElement | null = null;
-          let passportInput: HTMLInputElement | null = null;
-          
-          if (fileInputs.length >= 2) {
-             portraitInput = fileInputs[0];
-             passportInput = fileInputs[1];
-          } else if (fileInputs.length === 1) {
-             portraitInput = fileInputs[0];
-          }
+      // Emergency Contact
+      await autoFill('#basic_ttllLlHoTen', pendingApp.emergencyName);
+      await autoFill('#basic_ttllLlNoiOHienTai', pendingApp.emergencyAddress);
+      await autoFill('#basic_ttllLlSdt', pendingApp.emergencyTelephone);
+      await autoFill('#basic_ttllLlQuanHe', pendingApp.emergencyRelationship);
 
-          if (portraitInput && pendingApp.portraitSignedUrl) {
-            await handlePhotoUploadByElement(pendingApp.portraitSignedUrl, portraitInput)
-            await new Promise(resolve => setTimeout(resolve, 2000));
-          } else {
-            console.warn("Could not find file input for portrait photo");
-          }
+      // Trip Info
+      await autoFill('#basic_ttcdMucDich', pendingApp.purposeOfEntry);
+      await autoFill('#basic_ttcdThoiGianNcStr', formatDate(pendingApp.intendedDateOfEntry || pendingApp.arrivalDate));
+      await autoFill('#basic_ttcdSoNgayTamTru', pendingApp.intendedLengthOfStay);
+      await autoFill('#basic_ttcdDcTamTru', pendingApp.residentialAddressInVietnam);
+      await autoFill('#basic_ttcdTinhTp', pendingApp.provinceCity);
+      await new Promise(r => setTimeout(r, 500));
+      await autoFill('#basic_ttcdPhuongXa', pendingApp.wardCommune);
+      await autoFill('#basic_ttcdNcCuaKhau', pendingApp.entryGate);
+      await new Promise(r => setTimeout(r, 800));
 
-          if (passportInput && pendingApp.passportSignedUrl) {
-            await handlePhotoUploadByElement(pendingApp.passportSignedUrl, passportInput)
-            await new Promise(resolve => setTimeout(resolve, 2000));
-          } else {
-            console.warn("Could not find file input for passport photo");
-          }
-
-          // Personal
-          await autoFill('#basic_ttcnEmail', pendingApp.email);
-          await autoFill('#basic_ttcnConfirmEmail', pendingApp.email);
-          
-          // Uncheck "Agree to create account" if present
-          const emailCheckboxes = document.querySelectorAll('.ant-checkbox-wrapper, label.ant-checkbox-wrapper');
-          for (const wrapper of Array.from(emailCheckboxes)) {
-            const text = (wrapper as HTMLElement).innerText || wrapper.textContent || '';
-            const lowerText = text.toLowerCase();
-            if (lowerText.includes('agree to create') || lowerText.includes('create account') || lowerText.includes('tạo tài khoản')) {
-              const checkboxInput = wrapper.querySelector('input[type="checkbox"]') as HTMLInputElement;
-              const isChecked = wrapper.querySelector('.ant-checkbox-checked') !== null || (checkboxInput && checkboxInput.checked);
-              if (isChecked) {
-                (wrapper as HTMLElement).click();
-                await new Promise(r => setTimeout(r, 200));
-              }
-            }
-          }
-
-          await autoFill('#basic_ttcnTonGiao', pendingApp.religion);
-          await autoFill('#basic_ttcnNoiSinh', pendingApp.placeOfBirth);
-
-          // Passport
-          await autoFill('#basic_hcLoai', pendingApp.passportType);
-          await autoFill('#basic_hcNgayCapStr', formatDate(pendingApp.passportIssueDate));
-          await autoFill('#basic_hcGiaTriDenStr', formatDate(pendingApp.passportExpiryDate));
-          await autoFill('#basic_nddnTtdtTuNgayStr', formatDate(pendingApp.visaValidFrom));
-
-          let validToDate = '';
-          const fromDateStr = pendingApp.visaValidFrom || pendingApp.arrivalDate;
-          const durationDays = pendingApp.registrationDuration ?? 30;
-          if (fromDateStr) {
-            const parts = fromDateStr.split('-');
-            if (parts.length === 3) {
-              const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-              d.setDate(d.getDate() + durationDays);
-              validToDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-            }
-          }
-          await autoFill('#basic_nddnTtdtDenNgayStr', formatDate(validToDate));
-
-          // Addresses
-          await autoFill('#basic_ttllDcThuongTru', pendingApp.permanentAddress);
-          await autoFill('#basic_ttllDcLienHe', pendingApp.contactAddress);
-          await autoFill('#basic_ttllSdt', pendingApp.telephone);
-
-          // Emergency Contact
-          await autoFill('#basic_ttllLlHoTen', pendingApp.emergencyName);
-          await autoFill('#basic_ttllLlNoiOHienTai', pendingApp.emergencyAddress);
-          await autoFill('#basic_ttllLlSdt', pendingApp.emergencyTelephone);
-          await autoFill('#basic_ttllLlQuanHe', pendingApp.emergencyRelationship);
-
-          // Trip Info
-          await autoFill('#basic_ttcdMucDich', pendingApp.purposeOfEntry);
-          await autoFill('#basic_ttcdThoiGianNcStr', formatDate(pendingApp.intendedDateOfEntry || pendingApp.arrivalDate));
-          await autoFill('#basic_ttcdSoNgayTamTru', pendingApp.intendedLengthOfStay);
-          await autoFill('#basic_ttcdDcTamTru', pendingApp.residentialAddressInVietnam);
-          await autoFill('#basic_ttcdTinhTp', pendingApp.provinceCity);
-          await new Promise(r => setTimeout(r, 500));
-          await autoFill('#basic_ttcdPhuongXa', pendingApp.wardCommune);
-          await autoFill('#basic_ttcdNcCuaKhau', pendingApp.entryGate);
-          await new Promise(r => setTimeout(r, 800));
-          
-          // Exit gate will be filled later after face compare
-
-          // Check confirmation checkboxes at the bottom of the form
-          const formCheckboxes = document.querySelectorAll('.ant-checkbox-wrapper, label.ant-checkbox-wrapper');
-          for (const wrapper of Array.from(formCheckboxes)) {
-            const text = (wrapper as HTMLElement).innerText || wrapper.textContent || '';
-            const lowerText = text.toLowerCase();
-            if (lowerText.includes('i hereby declare') || lowerText.includes('vietnamese laws') || lowerText.includes('above statements are true') || lowerText.includes('committed to declare')) {
-              const isChecked = wrapper.querySelector('.ant-checkbox-checked') !== null;
+      // Select Single-entry or Multiple-entry after face matching succeeds
+      if (pendingApp.entryType) {
+        const targetLabel = pendingApp.entryType === 'single' ? 'single' : 'multiple';
+        let entrySelected = false;
+        let entryRetries = 0;
+        while (!entrySelected && entryRetries < 10) {
+          const radioWrappers = Array.from(document.querySelectorAll('.ant-radio-wrapper, label.ant-radio-button-wrapper'));
+          for (const wrapper of radioWrappers) {
+            const text = ((wrapper as HTMLElement).innerText || wrapper.textContent || '').toLowerCase();
+            if (text.includes(targetLabel)) {
+              const isChecked = wrapper.querySelector('.ant-radio-checked, .ant-radio-button-wrapper-checked') !== null;
               if (!isChecked) {
                 (wrapper as HTMLElement).click();
+                await new Promise(r => setTimeout(r, 300));
               }
-            }
-          }
-
-          // Wait for matching percentage message
-          console.log("Waiting for matching percentage...");
-          let matchWaitMs = 0;
-          while (matchWaitMs < 30000) {
-            await new Promise(r => setTimeout(r, 1000));
-            matchWaitMs += 1000;
-            const bodyText = document.body.innerText.toLowerCase();
-            if (bodyText.includes('mức độ khớp') || bodyText.includes('tương đồng') || bodyText.includes('matching') || bodyText.includes('khớp') || bodyText.includes('tỷ lệ') || bodyText.includes('similarity') || bodyText.includes('face compare')) {
+              entrySelected = true;
               break;
             }
           }
-
-          // After face compare is complete, wait 1s then select entry type and fill exit gate
-          await new Promise(r => setTimeout(r, 1000));
-
-          // Select Single-entry or Multiple-entry after face matching succeeds
-          if (pendingApp.entryType) {
-            const targetLabel = pendingApp.entryType === 'single' ? 'single' : 'multiple';
-            let entrySelected = false;
-            let entryRetries = 0;
-            while (!entrySelected && entryRetries < 10) {
-              const radioWrappers = Array.from(document.querySelectorAll('.ant-radio-wrapper, label.ant-radio-button-wrapper'));
-              for (const wrapper of radioWrappers) {
-                const text = ((wrapper as HTMLElement).innerText || wrapper.textContent || '').toLowerCase();
-                if (text.includes(targetLabel)) {
-                  const isChecked = wrapper.querySelector('.ant-radio-checked, .ant-radio-button-wrapper-checked') !== null;
-                  if (!isChecked) {
-                    (wrapper as HTMLElement).click();
-                    await new Promise(r => setTimeout(r, 300));
-                  }
-                  entrySelected = true;
-                  break;
-                }
-              }
-              if (!entrySelected) {
-                await new Promise(r => setTimeout(r, 500));
-                entryRetries++;
-              }
-            }
-            if (!entrySelected) {
-              console.warn('Could not find entry type radio button for:', targetLabel);
-            }
+          if (!entrySelected) {
+            await new Promise(r => setTimeout(r, 500));
+            entryRetries++;
           }
-
-          await autoFill('#basic_ttcdXcCuaKhau', 'Cam Pha Seaport');
-          await new Promise(r => setTimeout(r, 500));
-
-          // Clear data cache
-          await storage.remove("pendingApplication");
-          alert("Form filled — please review and submit.")
-        } catch (error) {
-          console.error("Error auto-filling form:", error)
-        } finally {
-          setTimeout(() => {
-            if (popupInterval) clearInterval(popupInterval);
-          }, 10000)
+        }
+        if (!entrySelected) {
+          console.warn('Could not find entry type radio button for:', targetLabel);
         }
       }
-    }, 1000);
-    
-    // Failsafe: stop mainInterval after 2 minutes
-    setTimeout(() => clearInterval(mainInterval), 120000);
 
+      await autoFill('#basic_ttcdXcCuaKhau', 'Cam Pha Seaport');
+      await new Promise(r => setTimeout(r, 500));
+
+      // Check confirmation checkboxes at the bottom of the form
+      const formCheckboxes = document.querySelectorAll('.ant-checkbox-wrapper, label.ant-checkbox-wrapper');
+      for (const wrapper of Array.from(formCheckboxes)) {
+        const text = (wrapper as HTMLElement).innerText || wrapper.textContent || '';
+        const lowerText = text.toLowerCase();
+        if (lowerText.includes('i hereby declare') || lowerText.includes('vietnamese laws') || lowerText.includes('above statements are true') || lowerText.includes('committed to declare')) {
+          const isChecked = wrapper.querySelector('.ant-checkbox-checked') !== null;
+          if (!isChecked) {
+            (wrapper as HTMLElement).click();
+          }
+        }
+      }
+
+      // Final validation scan
+      console.log("Scanning for required field errors...");
+      await new Promise(r => setTimeout(r, 1000)); // give UI a moment to validate and show errors
+      
+      const errorElements = Array.from(document.querySelectorAll('.ant-form-item-has-error'));
+      const errorMessages: string[] = [];
+      
+      for (const el of errorElements) {
+        const labelEl = el.querySelector('.ant-form-item-label label');
+        let labelText = 'Unknown field';
+        if (labelEl) {
+          labelText = labelEl.textContent?.replace('*', '').trim() || 'Unknown field';
+        }
+        
+        const explainEl = el.querySelector('.ant-form-item-explain-error');
+        const explainText = explainEl?.textContent?.trim() || 'Required field';
+        
+        errorMessages.push(`- ${labelText}: ${explainText}`);
+      }
+      
+      // Clear data cache
+      await storage.remove("pendingApplication");
+      
+      if (errorMessages.length > 0) {
+        alert("The form was filled, but the following fields have errors:\n\n" + errorMessages.join("\n"));
+      } else {
+        alert("Form filled successfully with no errors.");
+      }
+
+    } finally {
+      setTimeout(() => {
+        clearInterval(popupInterval);
+      }, 5000);
+    }
   } catch (error) {
     console.error("Error in fillForm logic:", error)
   }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { addDays, format, parse } from 'date-fns'
 import { applicationFormSchema } from '@/lib/form-schemas'
 import { createServiceClient } from '@/lib/supabase-server'
 
@@ -46,6 +47,7 @@ export async function POST(req: NextRequest) {
       wardCommune: formData.get('wardCommune') || '',
       entryGate: formData.get('entryGate') || '',
       exitGate: formData.get('exitGate') || '',
+      address: formData.get('address') || '',
     }
 
     const parseResult = applicationFormSchema.safeParse(rawData)
@@ -120,6 +122,7 @@ export async function POST(req: NextRequest) {
     }
 
     let passportIssueDateIso = null
+    let passportExpiryDateIso = null
     if (data.passportIssueDate) {
       const matchIssue = data.passportIssueDate.match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
       if (matchIssue) {
@@ -128,20 +131,36 @@ export async function POST(req: NextRequest) {
         // Fallback in case it's somehow already YYYY-MM-DD
         passportIssueDateIso = data.passportIssueDate
       }
+      const issueDate = new Date(passportIssueDateIso!)
+      issueDate.setFullYear(issueDate.getFullYear() + 10)
+      passportExpiryDateIso = `${issueDate.getFullYear()}-${String(issueDate.getMonth() + 1).padStart(2, '0')}-${String(issueDate.getDate()).padStart(2, '0')}`
+    }
+
+    // Parse optional custom address into province/city and ward/commune
+    const customAddress = data.address?.trim() || ''
+    let isCustomAddress = false
+    let customResidentialAddress = ''
+    let customProvinceCity = ''
+    let customWardCommune = ''
+
+    if (customAddress) {
+      isCustomAddress = true
+      customResidentialAddress = customAddress
+      const parts = customAddress.split(',').map((p: string) => p.trim()).filter(Boolean)
+      if (parts.length >= 2) {
+        const removeDiacritics = (str: string) =>
+          str.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D')
+        customProvinceCity = removeDiacritics(parts[parts.length - 1]).toUpperCase()
+        customWardCommune = removeDiacritics(parts[parts.length - 2]).toUpperCase()
+      }
     }
 
     const supabase = createServiceClient()
 
     // Compute visa valid-from (= arrival date) and valid-to based on registration duration
     const registrationDays = data.registrationDuration ? parseInt(data.registrationDuration, 10) : 30
-    const arrivalDateObj = new Date(
-      parseInt(match[3], 10),
-      parseInt(match[2], 10) - 1,
-      parseInt(match[1], 10)
-    )
-    const validToObj = new Date(arrivalDateObj)
-    validToObj.setDate(validToObj.getDate() + registrationDays)
-    const validToIso = `${validToObj.getFullYear()}-${String(validToObj.getMonth() + 1).padStart(2, '0')}-${String(validToObj.getDate()).padStart(2, '0')}`
+    const arrivalDate = parse(arrivalDateIso, 'yyyy-MM-dd', new Date())
+    const validToIso = format(addDays(arrivalDate, registrationDays), 'yyyy-MM-dd')
 
     // 6. Insert row to generate app_id
     // Note: RLS is bypassed because we use the Service Role Key
@@ -159,7 +178,7 @@ export async function POST(req: NextRequest) {
         place_of_birth: data.placeOfBirth || 'Same as nationality',
         visa_valid_from: arrivalDateIso,
         passport_type: data.passportType || 'Ordinary passport',
-        passport_expiry_date: data.passportExpiryDate || validToIso,
+        passport_expiry_date: passportExpiryDateIso || validToIso,
         passport_issue_date: passportIssueDateIso,
         permanent_address: data.permanentAddress || '2568 Park Ave, Bronx, NY 10451, United State',
         contact_address: data.contactAddress || '2568 Park Ave, Bronx, NY 10451, United State',
@@ -171,11 +190,12 @@ export async function POST(req: NextRequest) {
         purpose_of_entry: data.purposeOfEntry || 'Tourist',
         intended_date_of_entry: data.intendedDateOfEntry || arrivalDateIso,
         intended_length_of_stay: data.intendedLengthOfStay || String(registrationDays),
-        residential_address_in_vietnam: data.residentialAddressInVietnam || '39 Hàng Bài, Hoàn Kiếm, Hà Nội',
-        province_city: data.provinceCity || 'Ha Noi City',
-        ward_commune: data.wardCommune || 'HOAN KIEM WARD',
+        residential_address_in_vietnam: isCustomAddress ? customResidentialAddress : (data.residentialAddressInVietnam || '39 Hàng Bài, Hoàn Kiếm, Hà Nội'),
+        province_city: isCustomAddress ? customProvinceCity : (data.provinceCity || 'Ha Noi City'),
+        ward_commune: isCustomAddress ? customWardCommune : (data.wardCommune || 'HOAN KIEM WARD'),
         entry_gate: data.entryGate || 'Noi Bai Int Airport',
         exit_gate: data.exitGate || 'Noi Bai Int Airport',
+        is_custom_address: isCustomAddress,
         status: 'ready',
       })
       .select('id, app_id')

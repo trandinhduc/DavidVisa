@@ -95,6 +95,7 @@ export default function ApplicationForm() {
       }
       if (data.registrationDuration) formData.append('registrationDuration', data.registrationDuration)
       if (data.entryType) formData.append('entryType', data.entryType)
+      if (data.address) formData.append('address', data.address)
       formData.append('portraitPhoto', data.portraitPhoto as File)
       formData.append('passportPhoto', data.passportPhoto as File)
       formData.append('recaptchaToken', token!)
@@ -239,6 +240,7 @@ export default function ApplicationForm() {
             onBlur={field.onBlur}
             error={errors.arrivalDate?.message}
             aria-describedby={errors.arrivalDate ? 'arrivalDate-error' : undefined}
+            summaryPrefix="You will arrive on "
           />
         )}
       />
@@ -291,6 +293,31 @@ export default function ApplicationForm() {
           />
         )}
       />
+      {/* Address in Vietnam (optional) */}
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="address">
+          Address in Vietnam <span className="text-muted-foreground text-xs font-normal">(optional)</span>
+        </Label>
+        <textarea
+          id="address"
+          placeholder="e.g. 39 Hàng Bài, Hoàn Kiếm, Hà Nội"
+          rows={2}
+          className={cn(
+            "w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 resize-none",
+            errors.address && 'border-destructive'
+          )}
+          {...register('address')}
+        />
+        <p className="text-xs text-muted-foreground">
+          If left blank, a default address will be used automatically.
+        </p>
+        {errors.address && (
+          <p role="alert" className="text-xs text-destructive mt-1">
+            {errors.address.message}
+          </p>
+        )}
+      </div>
+
       {/* reCAPTCHA v2 Fallback */}
       {useV2Fallback && (
         <div className="flex justify-center">

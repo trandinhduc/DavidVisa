@@ -35,6 +35,7 @@ export interface ApplicationData {
   wardCommune: string | null
   entryGate: string | null
   exitGate: string | null
+  isCustomAddress: boolean
   createdAt: string
   updatedAt: string
 }
@@ -72,6 +73,7 @@ export interface PushToEvisaMessage {
   wardCommune: string | null
   entryGate: string | null
   exitGate: string | null
+  isCustomAddress: boolean
 }
 
 export interface ClearPendingApplicationMessage {

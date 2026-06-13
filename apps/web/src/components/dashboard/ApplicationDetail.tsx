@@ -586,6 +586,7 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
               wardCommune: application.wardCommune,
               entryGate: application.entryGate,
               exitGate: application.exitGate,
+              isCustomAddress: application.isCustomAddress,
             }
 
             try {

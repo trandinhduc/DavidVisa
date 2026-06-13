@@ -52,6 +52,7 @@ export type Database = {
           id: string
           intended_date_of_entry: string | null
           intended_length_of_stay: string | null
+          is_custom_address: boolean
           last_name: string | null
           passport_expiry_date: string | null
           passport_issue_date: string | null
@@ -88,6 +89,7 @@ export type Database = {
           id?: string
           intended_date_of_entry?: string | null
           intended_length_of_stay?: string | null
+          is_custom_address?: boolean
           last_name?: string | null
           passport_expiry_date?: string | null
           passport_issue_date?: string | null
@@ -124,6 +126,7 @@ export type Database = {
           id?: string
           intended_date_of_entry?: string | null
           intended_length_of_stay?: string | null
+          is_custom_address?: boolean
           last_name?: string | null
           passport_expiry_date?: string | null
           passport_issue_date?: string | null

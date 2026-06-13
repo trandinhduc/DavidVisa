@@ -10,9 +10,10 @@ export interface DateInputProps extends Omit<React.InputHTMLAttributes<HTMLInput
   error?: string
   value: string | null
   onChange: (val: string | null) => void
+  summaryPrefix?: string
 }
 
-export function DateInput({ label, error, value, onChange, id, 'aria-describedby': ariaDescribedby, className, ...props }: DateInputProps) {
+export function DateInput({ label, error, value, onChange, id, summaryPrefix, 'aria-describedby': ariaDescribedby, className, ...props }: DateInputProps) {
   const [localValue, setLocalValue] = useState(value || '')
   const [confirmationMessage, setConfirmationMessage] = useState<string | null>(null)
 
@@ -58,7 +59,11 @@ export function DateInput({ label, error, value, onChange, id, 'aria-describedby
       year: 'numeric'
     }).format(date)
 
-    setConfirmationMessage(`You will arrive on ${formattedDate}.`)
+    if (summaryPrefix) {
+      setConfirmationMessage(`${summaryPrefix}${formattedDate}.`)
+    } else {
+      setConfirmationMessage(null)
+    }
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {

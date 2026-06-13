@@ -91,6 +91,7 @@ export const applicationFormSchema = z.object({
   wardCommune: z.string().optional(),
   entryGate: z.string().optional(),
   exitGate: z.string().optional(),
+  address: z.string().optional(),
 })
 
 export type ApplicationFormData = z.infer<typeof applicationFormSchema>

@@ -10,3 +10,4 @@ yarn.lock
 /.agents
 .claude
 .kiro
+/.understand-anything

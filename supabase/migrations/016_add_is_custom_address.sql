@@ -1,0 +1,2 @@
+ALTER TABLE applications
+ADD COLUMN is_custom_address BOOLEAN NOT NULL DEFAULT FALSE;
