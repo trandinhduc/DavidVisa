@@ -12,8 +12,8 @@ export interface MrzResult {
 function parseMrzLine(line: string): MrzResult | null {
   // Bỏ whitespace OCR có thể thêm vào
   const clean = line.trim().replace(/\s/g, '')
-  // OCR thường misread '<' thành 'P', nên chấp nhận cả 'PP' prefix; length check nới lỏng vì OCR có thể truncate
-  if (!clean.startsWith('P<') && !clean.startsWith('PP')) return null
+  // '<' sau 'P' thường bị OCR misread thành 'P', 'S', 'K'... nên chỉ yêu cầu: P + 1 ký tự + 3-char country code
+  if (!/^P.[A-Z]{3}/.test(clean)) return null
   if (clean.length < 20) return null
 
   // Positions 5-43: names field (bỏ P< + 3-char country code)
@@ -25,7 +25,8 @@ function parseMrzLine(line: string): MrzResult | null {
   const givenNamesRaw = namesField.substring(sepIdx + 2)
   const firstName = givenNamesRaw.split('<').filter(Boolean).join(' ').trim()
 
-  if (!lastName) return null
+  // Yêu cầu cả hai field — firstName trống thường là dấu hiệu OCR misread separator '<<'
+  if (!lastName || !firstName) return null
   return { lastName, firstName }
 }
 
