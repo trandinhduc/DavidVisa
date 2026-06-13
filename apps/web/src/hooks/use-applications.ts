@@ -10,6 +10,7 @@ export function useApplications() {
       const { data, error } = await supabase
         .from('applications')
         .select('*')
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
 
       if (error) throw error
@@ -28,6 +29,7 @@ export function useApplications() {
         entryType: item.entry_type ?? null,
         createdAt: item.created_at,
         updatedAt: item.updated_at,
+        deletedAt: item.deleted_at ?? null,
       })) as ApplicationData[]
     }
   })

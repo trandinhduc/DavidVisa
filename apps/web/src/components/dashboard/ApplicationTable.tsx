@@ -1,3 +1,6 @@
+'use client'
+
+import { useState } from 'react'
 import {
   Table,
   TableBody,
@@ -8,9 +11,12 @@ import {
 } from "@/components/ui/table"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Button } from "@/components/ui/button"
-import { ChevronRight } from "lucide-react"
+import { ChevronRight, Trash2 } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { StatusBadge } from "./StatusBadge"
+import { DeleteConfirmModal } from "./DeleteConfirmModal"
 import type { ApplicationData } from "@david-agency/shared"
 
 interface ApplicationTableProps {
@@ -59,6 +65,23 @@ export function ApplicationTable({
   activeTab,
 }: ApplicationTableProps) {
   const router = useRouter()
+  const queryClient = useQueryClient()
+  const [deleteTarget, setDeleteTarget] = useState<ApplicationData | null>(null)
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return
+    setDeleteTarget(null)
+
+    try {
+      const res = await fetch(`/api/applications/${deleteTarget.id}`, { method: 'DELETE' })
+      const json = await res.json()
+      if (!res.ok || json.error) throw new Error(json.error?.message ?? 'Failed to delete')
+      await queryClient.invalidateQueries({ queryKey: ['applications'] })
+      toast.success('Hồ sơ đã được xóa.')
+    } catch {
+      toast.error('Xóa thất bại — vui lòng thử lại.', { duration: Infinity })
+    }
+  }
 
   if (isLoading) {
     return (
@@ -71,7 +94,7 @@ export function ApplicationTable({
               <TableHead>Arrival Date</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Submitted At</TableHead>
-              <TableHead className="w-[120px]">Actions</TableHead>
+              <TableHead className="w-[160px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -106,63 +129,83 @@ export function ApplicationTable({
   }
 
   return (
-    <div className="rounded-md border border-border bg-white">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Application ID</TableHead>
-            <TableHead>Applicant Name</TableHead>
-            <TableHead>Arrival Date</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Submitted At</TableHead>
-            <TableHead className="w-[120px]">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {applications.map((app) => (
-            <TableRow
-              key={app.id}
-              className="cursor-pointer hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
-              tabIndex={0}
-              role="link"
-              onClick={() => router.push(`/dashboard/applications/${app.id}`)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault()
-                  router.push(`/dashboard/applications/${app.id}`)
-                }
-              }}
-            >
-              <TableCell className="font-mono text-xs text-muted-foreground">{app.appId || '-'}</TableCell>
-              <TableCell className="font-medium">
-                {app.lastName || ''} {app.firstName || ''}
-              </TableCell>
-              <TableCell>
-                {formatArrivalDate(app.arrivalDate)}
-              </TableCell>
-              <TableCell>
-                <StatusBadge status={app.status} />
-              </TableCell>
-              <TableCell className="text-muted-foreground text-sm">
-                {formatCreatedAt(app.createdAt)}
-              </TableCell>
-              <TableCell onClick={(e) => e.stopPropagation()}>
-                {app.status === 'ready' && (
-                  <Button
-                    size="sm"
-                    variant="default"
-                    className="flex items-center gap-1 h-7 text-xs px-2"
-                    onClick={() => router.push(`/dashboard/applications/${app.id}?action=push`)}
-                  >
-                    Push to Visa
-                    <ChevronRight className="h-3 w-3" />
-                  </Button>
-                )}
-              </TableCell>
+    <>
+      <div className="rounded-md border border-border bg-white">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Application ID</TableHead>
+              <TableHead>Applicant Name</TableHead>
+              <TableHead>Arrival Date</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Submitted At</TableHead>
+              <TableHead className="w-[160px]">Actions</TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+          </TableHeader>
+          <TableBody>
+            {applications.map((app) => (
+              <TableRow
+                key={app.id}
+                className="cursor-pointer hover:bg-muted focus-visible:bg-muted focus-visible:outline-none"
+                tabIndex={0}
+                role="link"
+                onClick={() => router.push(`/dashboard/applications/${app.id}`)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    router.push(`/dashboard/applications/${app.id}`)
+                  }
+                }}
+              >
+                <TableCell className="font-mono text-xs text-muted-foreground">{app.appId || '-'}</TableCell>
+                <TableCell className="font-medium">
+                  {app.lastName || ''} {app.firstName || ''}
+                </TableCell>
+                <TableCell>
+                  {formatArrivalDate(app.arrivalDate)}
+                </TableCell>
+                <TableCell>
+                  <StatusBadge status={app.status} />
+                </TableCell>
+                <TableCell className="text-muted-foreground text-sm">
+                  {formatCreatedAt(app.createdAt)}
+                </TableCell>
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center gap-1">
+                    {app.status === 'ready' && (
+                      <Button
+                        size="sm"
+                        variant="default"
+                        className="flex items-center gap-1 h-7 text-xs px-2"
+                        onClick={() => router.push(`/dashboard/applications/${app.id}?action=push`)}
+                      >
+                        Push to Visa
+                        <ChevronRight className="h-3 w-3" />
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-destructive"
+                      onClick={() => setDeleteTarget(app)}
+                      title="Xóa hồ sơ"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      <DeleteConfirmModal
+        open={deleteTarget !== null}
+        applicationName={deleteTarget ? `${deleteTarget.lastName || ''} ${deleteTarget.firstName || ''}`.trim() || deleteTarget.appId : ''}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteTarget(null)}
+      />
+    </>
   )
 }

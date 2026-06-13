@@ -38,6 +38,7 @@ export interface ApplicationData {
   isCustomAddress: boolean
   createdAt: string
   updatedAt: string
+  deletedAt: string | null
 }
 
 export interface PushToEvisaMessage {

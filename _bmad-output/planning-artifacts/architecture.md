@@ -522,3 +522,26 @@ supabase init && supabase start
 - Use `{ data, error }` wrapper for all API responses
 - Never expose storage paths — always use Signed URLs
 - Respect one-way status flow: raw → ready → submitted → done
+
+## Post-Epic Enhancements
+
+### Soft Delete (2026-06-13)
+
+**Pattern:** Soft delete via `deleted_at TIMESTAMPTZ NULL` column — không bao giờ hard DELETE records.
+
+**API Boundary update:**
+
+| Route | Method | Auth | Purpose |
+|---|---|---|---|
+| `/api/applications/[id]` | DELETE | Service Role | Soft delete: set `deleted_at = now()` |
+
+**Rules:**
+- DELETE handler guards against re-deletion: `.is('deleted_at', null)` trên update query
+- GET `/api/applications/[id]` filters out deleted records (`.is('deleted_at', null)`) — trả về 404 nếu đã xóa
+- `useApplications` hook filter: `.is('deleted_at', null)` — dashboard không bao giờ hiển thị deleted records
+- Restore: set `deleted_at = null` trực tiếp trên Supabase (không có UI restore)
+- `ApplicationData.deletedAt` field: `string | null` — tracks khi nào record bị soft-delete
+
+**Files:**
+- `supabase/migrations/017_add_soft_delete.sql`
+- `apps/web/src/components/dashboard/DeleteConfirmModal.tsx` — reusable confirmation modal

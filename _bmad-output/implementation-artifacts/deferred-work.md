@@ -61,3 +61,8 @@
 
 ## Deferred from: code review of story-4.4 (2026-06-06)
 - Popup Selector Brittle Parsing [`apps/extension/contents/evisa-filler.ts`:66] — deferred, pre-existing
+
+## Deferred from: soft-delete-applications (2026-06-13)
+- Authorization gap: tất cả API routes (bao gồm DELETE /api/applications/[id]) chỉ check authentication, không check quyền theo record. Pre-existing pattern trên mọi route. Khi hệ thống có nhiều operators, cần thêm per-record ownership/role check.
+- PUT /api/applications/[id] cho phép edit record đã soft-deleted (không filter `deleted_at IS NULL`). Edge case hiếm, khi nào cần multi-operator access control thì fix cùng bullet trên.
+- Không có index trên cột `deleted_at` — khi data lớn, filter `.is('deleted_at', null)` sẽ full-table scan. Thêm index nếu performance trở thành vấn đề.

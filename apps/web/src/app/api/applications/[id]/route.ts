@@ -23,6 +23,7 @@ export async function GET(
       .from('applications')
       .select('*')
       .eq('id', id)
+      .is('deleted_at', null)
       .single()
 
     if (error || !data) {
@@ -68,6 +69,7 @@ export async function GET(
       status: data.status,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
+      deletedAt: data.deleted_at ?? null,
     }
 
     return NextResponse.json({ data: application, error: null })
@@ -222,9 +224,51 @@ export async function PUT(
       status: data.status,
       createdAt: data.created_at,
       updatedAt: data.updated_at,
+      deletedAt: data.deleted_at ?? null,
     }
 
     return NextResponse.json({ data: application, error: null })
+  } catch {
+    return NextResponse.json(
+      { data: null, error: { message: 'Internal server error', code: 'INTERNAL_ERROR' } },
+      { status: 500 }
+    )
+  }
+}
+
+export async function DELETE(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const authClient = await createServerComponentClient()
+    const { data: { session } } = await authClient.auth.getSession()
+    if (!session) {
+      return NextResponse.json(
+        { data: null, error: { message: 'Unauthorized', code: 'UNAUTHORIZED' } },
+        { status: 401 }
+      )
+    }
+
+    const { id } = await params
+    const supabase = createServiceClient()
+
+    const { data, error } = await supabase
+      .from('applications')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id)
+      .is('deleted_at', null)
+      .select('id')
+      .single()
+
+    if (error || !data) {
+      return NextResponse.json(
+        { data: null, error: { message: 'Application not found', code: 'NOT_FOUND' } },
+        { status: 404 }
+      )
+    }
+
+    return NextResponse.json({ data: { id: data.id }, error: null })
   } catch {
     return NextResponse.json(
       { data: null, error: { message: 'Internal server error', code: 'INTERNAL_ERROR' } },

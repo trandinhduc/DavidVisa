@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { Pencil, ChevronRight, Download } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Pencil, ChevronRight, Download, Trash2 } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { StatusBadge } from './StatusBadge'
@@ -10,6 +11,7 @@ import { ApplicationImages } from './ApplicationImages'
 import { EditModal } from './EditModal'
 import { CreateDataModal } from './CreateDataModal'
 import { PushConfirmModal } from './PushConfirmModal'
+import { DeleteConfirmModal } from './DeleteConfirmModal'
 import {
   Tooltip,
   TooltipContent,
@@ -51,9 +53,11 @@ function formatArrivalDate(dateStr: string | null | undefined): string {
 export function ApplicationDetail({ application }: ApplicationDetailProps) {
   const queryClient = useQueryClient()
   const searchParams = useSearchParams()
+  const router = useRouter()
   const [editOpen, setEditOpen] = useState(false)
   const [createDataOpen, setCreateDataOpen] = useState(false)
   const [pushConfirmOpen, setPushConfirmOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const [isPushing, setIsPushing] = useState(false)
   const { data: signedUrlsData, isLoading: isLoadingSignedUrls } = useSignedUrls(application.id)
 
@@ -206,6 +210,20 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
     }
   }
 
+  const handleDeleteConfirm = async () => {
+    setDeleteOpen(false)
+    try {
+      const res = await fetch(`/api/applications/${application.id}`, { method: 'DELETE' })
+      const json = await res.json()
+      if (!res.ok || json.error) throw new Error(json.error?.message ?? 'Failed to delete')
+      await queryClient.invalidateQueries({ queryKey: ['applications'] })
+      toast.success('Hồ sơ đã được xóa.')
+      router.push('/dashboard')
+    } catch {
+      toast.error('Xóa thất bại — vui lòng thử lại.', { duration: Infinity })
+    }
+  }
+
   const handleExport = () => {
     const dataToExport = {
       appId: application.appId,
@@ -262,6 +280,18 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
           >
             <Download className="h-3.5 w-3.5" />
             Export
+          </Button>
+
+          {/* Delete Button (always visible) */}
+          <Button
+            id="delete-application-btn"
+            variant="ghost"
+            size="sm"
+            onClick={() => setDeleteOpen(true)}
+            className="flex items-center gap-1.5 text-muted-foreground hover:text-destructive"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            Xóa
           </Button>
 
           {/* Edit button visible unless status is 'done' */}
@@ -543,6 +573,13 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
       )}
 
       {/* Push Confirm Modal — mounted when status is 'ready' */}
+      <DeleteConfirmModal
+        open={deleteOpen}
+        applicationName={`${application.lastName || ''} ${application.firstName || ''}`.trim() || application.appId}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteOpen(false)}
+      />
+
       {showPushToEvisa && (
         <PushConfirmModal
           application={application}

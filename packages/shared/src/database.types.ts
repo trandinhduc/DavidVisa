@@ -40,6 +40,7 @@ export type Database = {
           arrival_date: string
           contact_address: string | null
           created_at: string
+          deleted_at: string | null
           email: string | null
           emergency_address: string | null
           emergency_name: string | null
@@ -77,6 +78,7 @@ export type Database = {
           arrival_date: string
           contact_address?: string | null
           created_at?: string
+          deleted_at?: string | null
           email?: string | null
           emergency_address?: string | null
           emergency_name?: string | null
@@ -114,6 +116,7 @@ export type Database = {
           arrival_date?: string
           contact_address?: string | null
           created_at?: string
+          deleted_at?: string | null
           email?: string | null
           emergency_address?: string | null
           emergency_name?: string | null
