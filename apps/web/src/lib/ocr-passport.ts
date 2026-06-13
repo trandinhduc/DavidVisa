@@ -12,7 +12,9 @@ export interface MrzResult {
 function parseMrzLine(line: string): MrzResult | null {
   // Bỏ whitespace OCR có thể thêm vào
   const clean = line.trim().replace(/\s/g, '')
-  if (!clean.startsWith('P<') || clean.length < 44) return null
+  // OCR thường misread '<' thành 'P', nên chấp nhận cả 'PP' prefix; length check nới lỏng vì OCR có thể truncate
+  if (!clean.startsWith('P<') && !clean.startsWith('PP')) return null
+  if (clean.length < 20) return null
 
   // Positions 5-43: names field (bỏ P< + 3-char country code)
   const namesField = clean.substring(5, 44)
@@ -29,7 +31,7 @@ function parseMrzLine(line: string): MrzResult | null {
 
 /**
  * Tìm và parse MRZ từ text OCR trả về.
- * Tìm dòng bắt đầu bằng P< trong toàn bộ text.
+ * Tìm dòng bắt đầu bằng P< (hoặc PP — OCR error cho P<) trong toàn bộ text.
  */
 export function parseMrzFromText(text: string): MrzResult | null {
   const lines = text.split(/\r?\n/)
