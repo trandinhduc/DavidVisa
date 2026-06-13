@@ -26,7 +26,6 @@ interface ApplicationTableProps {
 }
 
 const statusLabels: Record<string, string> = {
-  raw: 'Raw',
   ready: 'Ready',
   submitted: 'Submitted',
   done: 'Done',

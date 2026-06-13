@@ -216,9 +216,9 @@ export function ApplicationDetail({ application }: ApplicationDetailProps) {
       const res = await fetch(`/api/applications/${application.id}`, { method: 'DELETE' })
       const json = await res.json()
       if (!res.ok || json.error) throw new Error(json.error?.message ?? 'Failed to delete')
-      await queryClient.invalidateQueries({ queryKey: ['applications'] })
       toast.success('Hồ sơ đã được xóa.')
       router.push('/dashboard')
+      queryClient.invalidateQueries({ queryKey: ['applications'] })
     } catch {
       toast.error('Xóa thất bại — vui lòng thử lại.', { duration: Infinity })
     }

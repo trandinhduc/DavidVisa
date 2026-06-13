@@ -7,15 +7,14 @@ import { useApplications } from '@/hooks/use-applications'
 import type { ApplicationData } from '@david-agency/shared'
 
 export default function DashboardPage() {
-  const [activeTab, setActiveTab] = useState<TabType>('raw')
+  const [activeTab, setActiveTab] = useState<TabType>('all')
   const [searchQuery, setSearchQuery] = useState('')
-  
+
   const { data: applications = [], isLoading, error, isError, refetch } = useApplications()
 
   const counts = useMemo(() => {
     const defaultCounts: Record<TabType, number> = {
       all: 0,
-      raw: 0,
       ready: 0,
       submitted: 0,
       done: 0,

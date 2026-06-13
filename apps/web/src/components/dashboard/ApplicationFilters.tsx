@@ -1,7 +1,7 @@
 import { Input } from "@/components/ui/input"
 import { Search } from "lucide-react"
 
-export type TabType = "all" | "raw" | "ready" | "submitted" | "done"
+export type TabType = "all" | "ready" | "submitted" | "done"
 
 interface ApplicationFiltersProps {
   activeTab: TabType;
@@ -12,7 +12,6 @@ interface ApplicationFiltersProps {
 }
 
 const TABS: { id: TabType; label: string }[] = [
-  { id: "raw", label: "Raw" },
   { id: "all", label: "All" },
   { id: "ready", label: "Ready" },
   { id: "submitted", label: "Submitted" },
